@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AlertsRouteImport } from './routes/alerts'
+import { Route as FamilyRouteImport } from './routes/family'
+import { Route as FitnessRouteImport } from './routes/fitness'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as MealsRouteImport } from './routes/meals'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PharmacyRouteImport } from './routes/pharmacy'
+import { Route as ProfileRouteImport } from './routes/profile'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActivityRoute = ActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsRoute = AlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FamilyRoute = FamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FitnessRoute = FitnessRouteImport.update({
+  id: '/fitness',
+  path: '/fitness',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MealsRoute = MealsRouteImport.update({
+  id: '/meals',
+  path: '/meals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PharmacyRoute = PharmacyRouteImport.update({
+  id: '/pharmacy',
+  path: '/pharmacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
+  '/family': typeof FamilyRoute
+  '/fitness': typeof FitnessRoute
+  '/home': typeof HomeRoute
+  '/meals': typeof MealsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/pharmacy': typeof PharmacyRoute
+  '/profile': typeof ProfileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
+  '/family': typeof FamilyRoute
+  '/fitness': typeof FitnessRoute
+  '/home': typeof HomeRoute
+  '/meals': typeof MealsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/pharmacy': typeof PharmacyRoute
+  '/profile': typeof ProfileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/activity': typeof ActivityRoute
+  '/admin': typeof AdminRoute
+  '/alerts': typeof AlertsRoute
+  '/family': typeof FamilyRoute
+  '/fitness': typeof FitnessRoute
+  '/home': typeof HomeRoute
+  '/meals': typeof MealsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/pharmacy': typeof PharmacyRoute
+  '/profile': typeof ProfileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/alerts'
+    | '/family'
+    | '/fitness'
+    | '/home'
+    | '/meals'
+    | '/onboarding'
+    | '/pharmacy'
+    | '/profile'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/alerts'
+    | '/family'
+    | '/fitness'
+    | '/home'
+    | '/meals'
+    | '/onboarding'
+    | '/pharmacy'
+    | '/profile'
+  id:
+    | '__root__'
+    | '/'
+    | '/activity'
+    | '/admin'
+    | '/alerts'
+    | '/family'
+    | '/fitness'
+    | '/home'
+    | '/meals'
+    | '/onboarding'
+    | '/pharmacy'
+    | '/profile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActivityRoute: typeof ActivityRoute
+  AdminRoute: typeof AdminRoute
+  AlertsRoute: typeof AlertsRoute
+  FamilyRoute: typeof FamilyRoute
+  FitnessRoute: typeof FitnessRoute
+  HomeRoute: typeof HomeRoute
+  MealsRoute: typeof MealsRoute
+  OnboardingRoute: typeof OnboardingRoute
+  PharmacyRoute: typeof PharmacyRoute
+  ProfileRoute: typeof ProfileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +182,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/activity': {
+      id: '/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts': {
+      id: '/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/family': {
+      id: '/family'
+      path: '/family'
+      fullPath: '/family'
+      preLoaderRoute: typeof FamilyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fitness': {
+      id: '/fitness'
+      path: '/fitness'
+      fullPath: '/fitness'
+      preLoaderRoute: typeof FitnessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/meals': {
+      id: '/meals'
+      path: '/meals'
+      fullPath: '/meals'
+      preLoaderRoute: typeof MealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pharmacy': {
+      id: '/pharmacy'
+      path: '/pharmacy'
+      fullPath: '/pharmacy'
+      preLoaderRoute: typeof PharmacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActivityRoute: ActivityRoute,
+  AdminRoute: AdminRoute,
+  AlertsRoute: AlertsRoute,
+  FamilyRoute: FamilyRoute,
+  FitnessRoute: FitnessRoute,
+  HomeRoute: HomeRoute,
+  MealsRoute: MealsRoute,
+  OnboardingRoute: OnboardingRoute,
+  PharmacyRoute: PharmacyRoute,
+  ProfileRoute: ProfileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
