@@ -19,7 +19,8 @@ const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 9)}`;
 interface Ctx {
   ready: boolean; db: DB; me: User | null; senior: User | null; medicines: typeof seedMedicines;
   login: (phone: string) => User | null;
-  register: (phone: string, name: string, role: Role) => User;
+  register: (phone: string, name: string, role: Role, extra?: Partial<ProfileDetails>) => User;
+  updateProfile: (p: ProfileDetails) => string | null;
   logout: () => void;
   giveConsent: () => void;
   saveHealth: (h: HealthProfile, address?: string) => void;
@@ -71,17 +72,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = useMemo(() => ({
     ready, db, me, senior, medicines: seedMedicines,
-    login: (phone) => {
-      const u = db.users.find((x) => x.phone === phone) ?? null;
+    login: (id) => {
+      const key = id.trim().toLowerCase();
+      const u = db.users.find((x) => (x.phone && x.phone === key) || (x.email && x.email.toLowerCase() === key)) ?? null;
       if (u) update((d) => ({ ...d, currentUserId: u.id, activeSeniorId: u.linkedSeniorIds[0] ?? null }));
       return u;
     },
-    register: (phone, name, role) => {
-      const existing = db.users.find((u) => u.phone === phone);
+    register: (phone, name, role, extra = {}) => {
+      const email = extra.email?.trim().toLowerCase() || undefined;
+      const existing = db.users.find((u) => (phone && u.phone === phone) || (email && u.email?.toLowerCase() === email));
       if (existing) return existing;
-      const u: User = { id: uid("u"), phone, name, role, linkedSeniorIds: [] };
+      const username = extra.username?.trim().toLowerCase();
+      if (username && db.users.some((u) => u.username === username)) throw new Error("That username is taken. Please choose another.");
+      const u: User = { id: uid("u"), phone, name, role, linkedSeniorIds: [], username, email, age: extra.age, city: extra.city?.trim() || undefined };
       update((d) => ({ ...d, users: [...d.users, u], currentUserId: u.id, activeSeniorId: null }));
       return u;
+    },
+    updateProfile: (p) => {
+      if (!me) return "Please sign in again.";
+      const username = p.username.trim().toLowerCase();
+      const email = p.email?.trim().toLowerCase() || undefined;
+      const phone = p.phone?.trim() || "";
+      if (p.name.trim().length < 2) return "Please enter your full name.";
+      if (!/^[a-z0-9_.]{3,20}$/.test(username)) return "Username: 3–20 letters, numbers, _ or .";
+      if (email && !/^\S+@\S+\.\S+$/.test(email)) return "Please enter a valid email.";
+      if (phone && !/^\d{10}$/.test(phone)) return "Mobile number must be 10 digits.";
+      if (!email && !phone) return "Keep at least a mobile number or an email.";
+      if (p.age !== undefined && (p.age < 18 || p.age > 120)) return "Please enter a valid age.";
+      const others = db.users.filter((u) => u.id !== me.id);
+      if (others.some((u) => u.username === username)) return "That username is taken.";
+      if (email && others.some((u) => u.email?.toLowerCase() === email)) return "That email is used by another account.";
+      if (phone && others.some((u) => u.phone === phone)) return "That mobile number is used by another account.";
+      patchMe((u) => ({ ...u, name: p.name.trim(), username, email, phone, age: p.age, city: p.city?.trim() || undefined }));
+      return null;
     },
     logout: () => update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
