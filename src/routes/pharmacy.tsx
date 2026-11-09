@@ -4,6 +4,8 @@ import { BadgeCheck, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { sessionDate } from "@/lib/booking-rules";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/pharmacy")({
   head: () => ({
@@ -18,10 +20,14 @@ export const Route = createFileRoute("/pharmacy")({
 });
 
 function Pharmacy() {
-  const { db, medicines, createBooking } = useStore();
+  const { db, medicines, createBooking, senior } = useStore();
   const nav = useNavigate();
   const [mode, setMode] = useState<"upload" | "select">("upload");
   const [file, setFile] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
+  const [day, setDay] = useState(1);
+  const [slot, setSlot] = useState("09:00");
   const [picked, setPicked] = useState<string[]>([]);
   const pharmacies = db.pharmacies.filter((p) => p.verified);
   const [ph, setPh] = useState(pharmacies[0]?.id ?? "");
@@ -30,8 +36,22 @@ function Pharmacy() {
   const meds = medicines.filter((m) => picked.includes(m.id));
   const subtotal = mode === "select" ? meds.reduce((s, m) => s + m.price, 0) : 250;
   const total = subtotal + 20;
-  const can = ph && (mode === "upload" ? !!file : picked.length > 0);
   const pharmacy = pharmacies.find((p) => p.id === ph);
+  const can = !!pharmacy && !reading && sessionDate(day, slot) > new Date() && (mode === "upload" ? !!attachment : picked.length > 0);
+  const upload = (input: HTMLInputElement) => {
+    const chosen = input.files?.[0];
+    setFile(null); setAttachment(null);
+    if (!chosen) return;
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(chosen.type) || chosen.size > 1024 * 1024) {
+      input.value = ""; toast.error("Choose a JPG, PNG or PDF no larger than 1 MB."); return;
+    }
+    setReading(true);
+    const reader = new FileReader();
+    reader.onload = () => { if (typeof reader.result === "string") { setAttachment(reader.result); setFile(chosen.name); } setReading(false); };
+    reader.onerror = () => { setReading(false); toast.error("Could not read that file. Please try again."); };
+    reader.readAsDataURL(chosen);
+  };
+  if (!senior?.consent?.given || !senior.health) return <p>This senior must complete their consent and health profile first. <Link to="/home" className="text-primary underline">Go home</Link></p>;
 
   return (
     <>
@@ -48,15 +68,16 @@ function Pharmacy() {
               <h2 className="text-2xl font-bold">1. Doctor’s prescription</h2>
               <label className="mt-4 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center hover:border-primary">
                 <FileUp className="h-10 w-10 text-primary" />
-                <span className="text-lg font-bold">{file ?? "Tap to upload photo or PDF"}</span>
-                <span className="text-muted-foreground">JPG, PNG or PDF</span>
-                <input type="file" accept="image/*,.pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0]?.name ?? null)} />
+                <span className="text-lg font-bold">{reading ? "Reading file…" : file ?? "Tap to upload photo or PDF"}</span>
+                <span className="text-muted-foreground">JPG, PNG or PDF · up to 1 MB · test data only</span>
+                <input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" onChange={(e) => upload(e.target)} />
               </label>
               <p className="mt-3 text-muted-foreground">Estimated ₹250 — final price confirmed by the pharmacist.</p>
             </>
           ) : (
             <>
               <h2 className="text-2xl font-bold">1. Prescribed medicines</h2>
+              <p className="mt-2 text-muted-foreground">The pharmacy reviews all medicine requests before confirming delivery.</p>
               <ul className="mt-3 space-y-2">
                 {medicines.map((m) => {
                   const on = picked.includes(m.id);
@@ -87,6 +108,10 @@ function Pharmacy() {
               </li>
             ))}
           </ul>
+          {pharmacies.length === 0 && <p className="mt-3 text-muted-foreground">No verified pharmacies available.</p>}
+          <h3 className="mt-5 text-xl font-bold">3. Delivery date & time</h3>
+          <div className="mt-2 flex flex-wrap gap-2">{[0, 1, 2, 3].map((i) => <button key={i} className="chip" aria-pressed={day === i} onClick={() => { setDay(i); setSlot(["09:00", "13:00", "18:00"].find((s) => sessionDate(i, s) > new Date()) ?? "09:00"); }}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : sessionDate(i, "09:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</button>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{["09:00", "13:00", "18:00"].map((s) => <button key={s} className="chip" aria-pressed={slot === s} disabled={sessionDate(day, s) <= new Date()} onClick={() => setSlot(s)}>{s}</button>)}</div>
           <p className="mt-4 flex justify-between"><span>Medicines</span><span>₹{subtotal}</span></p>
           <p className="flex justify-between text-muted-foreground"><span>Delivery</span><span>₹20</span></p>
           <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
@@ -95,10 +120,11 @@ function Pharmacy() {
       </div>
 
       <UpiCheckout open={pay} amount={total} title={`Medicines from ${pharmacy?.name}`}
-        onClose={() => { setPay(false); nav({ to: "/activity" }); }}
+        onClose={() => setPay(false)}
+        onDone={() => { setPay(false); nav({ to: "/activity" }); }}
         onPaid={() => {
-          const w = new Date(Date.now() + 60 * 60 * 1000);
-          createBooking({ type: "medicine", title: mode === "upload" ? "Prescription order" : "Medicine order", partnerId: ph, partnerName: pharmacy!.name, amount: total, when: w.toISOString(), detail: mode === "upload" ? `Prescription: ${file}` : meds.map((m) => m.name).join(", "), prescription: file ?? undefined, items: meds.map((m) => ({ name: m.name, qty: 1, price: m.price })) });
+          if (!can || !pharmacy) throw new Error("Please choose a pharmacy, medicines and a future delivery time.");
+          createBooking({ type: "medicine", title: mode === "upload" ? "Prescription order" : "Medicine order", partnerId: ph, partnerName: pharmacy.name, amount: total, when: sessionDate(day, slot).toISOString(), detail: mode === "upload" ? `Prescription: ${file}` : meds.map((m) => m.name).join(", "), prescription: mode === "upload" ? file ?? undefined : undefined, prescriptionData: mode === "upload" ? attachment ?? undefined : undefined, items: mode === "select" ? meds.map((m) => ({ name: m.name, qty: 1, price: m.price })) : [] });
           toast.success("Sent to pharmacy! Track delivery under Bookings.");
         }} />
     </>

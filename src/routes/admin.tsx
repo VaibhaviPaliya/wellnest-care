@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { TAG_LABEL, type DietTag } from "@/lib/seed";
+import { FLOW, canCancel } from "@/lib/booking-rules";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -20,8 +21,10 @@ export const Route = createFileRoute("/admin")({
 type Tab = "partners" | "dishes" | "orders";
 
 function Admin() {
-  const { db, toggleVerify, toggleDishTag, resetDemo } = useStore();
+  const { db, toggleVerify, toggleDishTag, resetDemo, setStatus } = useStore();
   const [tab, setTab] = useState<Tab>("partners");
+  const [reset, setReset] = useState(false);
+  const [query, setQuery] = useState("");
   const stats = [
     ["Seniors", db.users.filter((u) => u.role === "senior").length],
     ["Verified partners", [...db.coaches, ...db.kitchens, ...db.pharmacies].filter((p) => p.verified).length],
@@ -35,7 +38,7 @@ function Admin() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-3xl font-bold md:text-4xl">Admin dashboard</h1>
-        <button className="btn btn-outline min-h-11 text-base" onClick={() => { resetDemo(); toast.success("Demo data reset"); }}>Reset demo data</button>
+        {reset ? <div className="flex flex-wrap gap-2"><button className="btn btn-outline min-h-11 text-base" onClick={() => setReset(false)}>Keep data</button><button className="btn btn-danger min-h-11 text-base" onClick={() => { resetDemo(); toast.success("Demo data reset. Please sign in again."); }}>Confirm reset</button></div> : <button className="btn btn-outline min-h-11 text-base" onClick={() => setReset(true)}>Reset demo data</button>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-3xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
@@ -91,14 +94,15 @@ function Admin() {
 
       {tab === "orders" && (
         <div className="surface overflow-x-auto p-2">
+          <input aria-label="Search orders" className="field mb-3" placeholder="Search service, senior or partner" value={query} onChange={(e) => setQuery(e.target.value)} />
           <table className="w-full min-w-[720px] text-left">
             <thead><tr className="border-b-2">{["Service", "Senior", "Booked by", "Partner", "When", "Amount", "Status", "Review"].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
             <tbody>
-              {db.bookings.map((b) => (
+              {db.bookings.filter((b) => [b.title, b.partnerName, uName(b.seniorId)].join(" ").toLowerCase().includes(query.toLowerCase())).map((b) => (
                 <tr key={b.id} className="border-b">
-                  <td className="p-3 font-bold">{b.title}</td><td className="p-3">{uName(b.seniorId)}</td><td className="p-3">{uName(b.bookedBy)}</td>
+                  <td className="p-3 font-bold">{b.title}{b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-2 block text-sm text-primary underline">View prescription</a>}<p className="text-sm font-normal text-muted-foreground">{b.detail}</p></td><td className="p-3">{uName(b.seniorId)}</td><td className="p-3">{uName(b.bookedBy)}</td>
                   <td className="p-3">{b.partnerName}</td><td className="p-3">{fmtWhen(b.when)}</td><td className="p-3">₹{b.amount}</td>
-                  <td className="p-3"><span className="tag">{STATUS_LABEL[b.status]}</span></td>
+                  <td className="p-3"><span className="tag">{STATUS_LABEL[b.status]}</span>{(() => { const steps = FLOW[b.type]; const idx = steps.indexOf(b.status); const next = idx >= 0 ? steps[idx + 1] : undefined; return next ? <button className="btn btn-outline mt-2 min-h-11 text-sm" onClick={() => setStatus(b.id, next)}>{b.status === "pending_review" ? "Approve order" : `Mark ${STATUS_LABEL[next]}`}</button> : null; })()}{canCancel(b) && <button className="mt-2 block text-sm text-destructive underline" onClick={() => setStatus(b.id, "cancelled")}>Cancel order</button>}</td>
                   <td className="p-3">{b.review ? `${"★".repeat(b.review.rating)}` : "—"}</td>
                 </tr>
               ))}

@@ -40,7 +40,7 @@ function Login() {
 
   const sendOtp = () => {
     if (!/^\d{10}$/.test(phone)) return toast.error("Please enter a 10-digit mobile number");
-    toast.success(`OTP sent. Demo code: ${DEMO_OTP}`);
+    toast.success(`Demo OTP: ${DEMO_OTP}. No SMS is sent.`);
     setStep("otp");
   };
   const verify = () => {
