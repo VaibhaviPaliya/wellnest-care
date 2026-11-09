@@ -6,6 +6,7 @@ import { Link2, UserRound } from "lucide-react";
 import { PageTitle, Shell } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { CONDITION_LABEL, DEMO_OTP } from "@/lib/seed";
+import { HealthForm } from "@/components/HealthForm";
 
 export const Route = createFileRoute("/family")({
   head: () => ({
@@ -22,10 +23,11 @@ export const Route = createFileRoute("/family")({
 });
 
 function Family() {
-  const { db, me, senior, linkSenior, setActiveSenior } = useStore();
+  const { db, me, senior, linkSenior, setActiveSenior, saveHealth } = useStore();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
+  const [editing, setEditing] = useState(false);
   const linked = db.users.filter((u) => me?.linkedSeniorIds.includes(u.id));
   const link = () => {
     if (otp !== DEMO_OTP) return toast.error("Wrong code. Demo code is 123456.");
@@ -44,6 +46,10 @@ function Family() {
           </li>
         ))}
       </ul>
+      {senior?.consent?.given && <section className="mt-6 max-w-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-bold">{senior.name.split(" ")[0]}’s health profile</h2><Button variant="care" size="care" className="btn btn-outline" onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit profile"}</Button></div>
+        {editing && <HealthForm key={senior.id} initial={senior.health} initialAddress={senior.address} submitLabel="Save profile" onSubmit={(health, address) => { saveHealth(health, address); setEditing(false); toast.success("Profile updated for your senior."); }} />}
+      </section>}
       <div className="surface mt-6 max-w-xl p-6">
         <h2 className="flex items-center gap-2 text-2xl font-bold"><Link2 className="h-6 w-6" />Link a senior</h2>
         <p className="mt-1 text-muted-foreground">Demo approval uses code {DEMO_OTP}; no SMS is sent. Try 9876500001.</p>

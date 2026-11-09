@@ -85,7 +85,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     logout: () => update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
-    saveHealth: (h, address) => patchMe((u) => u.role === "senior" && u.consent?.given ? ({ ...u, health: h, address: address ?? u.address }) : u),
+    saveHealth: (h, address) => {
+      if (!senior?.consent?.given || !canManageSenior(me, senior)) return;
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === senior.id ? { ...u, health: h, address: address ?? u.address } : u) }));
+    },
     deleteHealthData: () => {
       if (me?.role !== "senior") return;
       update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b) }));

@@ -150,9 +150,9 @@ export const seedBookings: Booking[] = [
   { id: "b-seed-1", type: "fitness", seniorId: "u-senior-1", bookedBy: "u-senior-1", title: "Chair Yoga · Home visit",
     partnerId: "c1", partnerName: "Meera Nair", amount: 499, when: d(0, 17), createdAt: d(-1, 9),
     status: "confirmed", detail: "Gentle yoga at home", upiRef: "UPI4829301" },
-  { id: "b-seed-2", type: "meal", seniorId: "u-senior-1", bookedBy: "u-family-1", title: "Lunch from Annapoorna",
-    partnerId: "k1", partnerName: "Annapoorna Wellness Kitchen", amount: 260, when: d(1, 13), createdAt: d(0, 8),
-    status: "confirmed", detail: "2 items", items: [{ name: "Moong Dal Khichdi", qty: 1, price: 140 }, { name: "Steamed Idli with Sambar", qty: 1, price: 120 }], upiRef: "UPI4829302" },
+  { id: "b-seed-2", type: "meal", seniorId: "u-senior-1", bookedBy: "u-family-1", title: "Lunch from HeartSmart",
+    partnerId: "k3", partnerName: "HeartSmart Meals", amount: 320, when: d(1, 13), createdAt: d(0, 8),
+    status: "confirmed", detail: "2 items", items: [{ name: "Millet Vegetable Pulao", qty: 1, price: 170 }, { name: "Lentil Soup (Masoor)", qty: 1, price: 120 }], upiRef: "UPI4829302" },
   { id: "b-seed-3", type: "medicine", seniorId: "u-senior-1", bookedBy: "u-senior-1", title: "Monthly BP & sugar medicines",
     partnerId: "p1", partnerName: "Apollo Care Pharmacy", amount: 105, when: d(-3, 12), createdAt: d(-3, 10),
     status: "completed", detail: "Metformin, Amlodipine", items: [{ name: "Metformin", qty: 1, price: 45 }, { name: "Amlodipine", qty: 1, price: 60 }], upiRef: "UPI4829303" },
@@ -160,7 +160,7 @@ export const seedBookings: Booking[] = [
 
 export const seedNotices: Notice[] = [
   { id: "n1", userId: "u-family-1", title: "Yoga session booked for Amma", body: "Kamala's Chair Yoga with Meera Nair is today at 5:00 PM.", at: d(-1, 9), read: false },
-  { id: "n2", userId: "u-senior-1", title: "Lunch ordered by Arjun", body: "Arjun ordered lunch from Annapoorna for tomorrow 1:00 PM.", at: d(0, 8), read: false },
+  { id: "n2", userId: "u-senior-1", title: "Lunch ordered by Arjun", body: "Arjun ordered lunch from HeartSmart for tomorrow 1:00 PM.", at: d(0, 8), read: false },
 ];
 
 export const DEMO_OTP = "123456";

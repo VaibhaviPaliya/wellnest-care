@@ -42,6 +42,21 @@ describe("WellNest care rules", () => {
     expect(result.current.senior?.id).toBe("u-senior-2");
   });
 
+  it("allows linked family to update a consented senior profile without storing health on the family account", async () => {
+    const result = await store("9123456789");
+    act(() => result.current.saveHealth({ conditions: ["high_bp"], diet: "jain", mobility: "limited", allergies: "" }, "Demo address"));
+    expect(result.current.senior?.health?.diet).toBe("jain");
+    expect(result.current.me?.health).toBeUndefined();
+  });
+
+  it("revoking family access removes the senior from family management", async () => {
+    const result = await store();
+    act(() => result.current.unlinkFamily("u-family-1"));
+    act(() => { result.current.login("9123456789"); });
+    expect(result.current.me?.linkedSeniorIds).toEqual([]);
+    expect(result.current.senior).toBeNull();
+  });
+
   it("rejects an unverified coach at booking time", async () => {
     const result = await store();
     expect(() => result.current.createBooking({ type: "fitness", title: "Yoga", partnerId: "c5", partnerName: "Sunil", amount: 349, when: new Date(Date.now() + 86400000).toISOString(), detail: "Gentle" })).toThrow("not available");
