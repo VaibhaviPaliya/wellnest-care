@@ -39,7 +39,7 @@ export interface Booking {
   title: string; partnerId: string; partnerName: string; amount: number;
   when: string; createdAt: string; status: Status; detail: string;
   items?: { name: string; qty: number; price: number }[];
-  prescription?: string; review?: { rating: number; text: string };
+  prescription?: string; prescriptionData?: string; videoUrl?: string; review?: { rating: number; text: string };
   upiRef: string;
 }
 export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; }

@@ -83,7 +83,7 @@ export function PageTitle({ title, sub, back = true }: { title: string; sub?: st
 }
 
 /** Simulated UPI checkout. */
-export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: () => void }) {
+export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: () => void; onDone: () => void }) {
   const [app, setApp] = useState("GPay");
   const [vpa, setVpa] = useState("kamala@okaxis");
   const [stage, setStage] = useState<"form" | "paying" | "done">("form");
@@ -103,7 +103,7 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: bo
     }, 1600);
   };
   return (
-    <Dialog open={open} onOpenChange={(value) => { if (!value && stage !== "paying") onClose(); }}>
+    <Dialog open={open} onOpenChange={(value) => { if (!value && stage !== "paying") { if (stage === "done") onDone(); else onClose(); } }}>
       <DialogContent aria-describedby="payment-description" onEscapeKeyDown={(event) => { if (stage === "paying") event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
         <DialogTitle className="sr-only">UPI payment</DialogTitle>
         <DialogDescription id="payment-description" className="sr-only">Simulated payment. No money is charged.</DialogDescription>
@@ -112,7 +112,7 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: bo
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
             <h2 className="mt-3 text-2xl font-bold">Payment successful</h2>
             <p className="mt-1 text-muted-foreground">₹{amount} paid · Family has been notified</p>
-            <button className="btn btn-primary mt-6 w-full" onClick={onClose}>Done</button>
+            <button className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</button>
           </div>
         ) : (
           <>

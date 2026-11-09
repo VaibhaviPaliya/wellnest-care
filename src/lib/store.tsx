@@ -86,7 +86,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     logout: () => update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
     saveHealth: (h, address) => patchMe((u) => u.role === "senior" && u.consent?.given ? ({ ...u, health: h, address: address ?? u.address }) : u),
-    deleteHealthData: () => patchMe((u) => u.role === "senior" ? ({ ...u, health: undefined, consent: undefined }) : u),
+    deleteHealthData: () => {
+      if (me?.role !== "senior") return;
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b) }));
+    },
     linkSenior: (phone) => {
       if (me?.role !== "family") return "Only family accounts can link a senior.";
       const s = db.users.find((u) => u.phone === phone && u.role === "senior");
@@ -110,10 +113,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const partners = b.type === "fitness" ? db.coaches : b.type === "meal" ? db.kitchens : db.pharmacies;
       if (!partners.some((p) => p.id === b.partnerId && p.verified)) throw new Error("This partner is not available.");
       if (new Date(b.when) <= new Date()) throw new Error("Please select a future time.");
+      if (b.type === "fitness" && db.bookings.some((existing) => existing.type === "fitness" && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
       const sid = senior.id;
       const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: "UPI" + Math.floor(1e6 + Math.random() * 9e6) };
       const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
-      update((d) => ({ ...d, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order confirmed"}: ${b.title}`, `${who} · ${b.partnerName} · ₹${b.amount} paid via UPI`) }));
+      update((d) => ({ ...d, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ₹${b.amount} paid via demo UPI`) }));
       return booking;
     },
     setStatus: (id, s) => update((d) => {

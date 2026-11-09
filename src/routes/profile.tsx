@@ -19,10 +19,12 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
-  const { me, db, saveHealth, deleteHealthData } = useStore();
+  const { me, db, saveHealth, deleteHealthData, unlinkFamily } = useStore();
   const nav = useNavigate();
   const [confirm, setConfirm] = useState(false);
-  const family = db.users.filter((u) => u.linkedSeniorIds.includes(me!.id));
+  const [revoke, setRevoke] = useState<string | null>(null);
+  if (!me) return null;
+  const family = db.users.filter((u) => u.linkedSeniorIds.includes(me.id));
   return (
     <>
       <PageTitle title="My Profile" sub={`${me!.name} · +91 ${me!.phone}`} />
@@ -36,11 +38,11 @@ function Profile() {
             <h2 className="flex items-center gap-2 text-xl font-bold"><ShieldCheck className="h-6 w-6 text-success" />Consent</h2>
             <p className="mt-1">Given on {me!.consent ? fmtWhen(me!.consent.at) : "—"}</p>
             <p className="mt-3 font-bold">Family who can see your bookings</p>
-            <ul className="mt-1 list-disc pl-5">{family.length ? family.map((f) => <li key={f.id}>{f.name}</li>) : <li>No one yet</li>}</ul>
+            <ul className="mt-1 space-y-3">{family.length ? family.map((f) => <li key={f.id}><p>{f.name}</p>{revoke === f.id ? <div className="flex flex-wrap gap-2"><button className="btn btn-outline min-h-11 text-base" onClick={() => setRevoke(null)}>Keep access</button><button className="btn btn-danger min-h-11 text-base" onClick={() => { unlinkFamily(f.id); setRevoke(null); toast.success("Family access removed."); }}>Confirm removal</button></div> : <button className="text-destructive underline" onClick={() => setRevoke(f.id)}>Remove access</button>}</li>) : <li>No one yet</li>}</ul>
           </div>
           <div className="surface border-destructive p-5">
             <h2 className="text-xl font-bold">Delete health data</h2>
-            <p className="mt-1">This erases your conditions, diet and mobility, and withdraws consent. Bookings history stays.</p>
+            <p className="mt-1">This erases your conditions, allergies, diet, mobility and prescription attachments, and withdraws consent. Booking history and your delivery address stay.</p>
             {confirm ? (
               <div className="mt-3 flex gap-2">
                 <button className="btn btn-outline flex-1" onClick={() => setConfirm(false)}>Keep</button>

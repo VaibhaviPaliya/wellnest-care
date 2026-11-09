@@ -16,10 +16,14 @@ export function canAccessBooking(actor: User | null, booking: Booking): boolean 
     (actor.role === "family" && actor.linkedSeniorIds.includes(booking.seniorId)));
 }
 
+export function canCancel(booking: Booking, now = new Date()): boolean {
+  return !["cancelled", "completed", "out_for_delivery"].includes(booking.status) && new Date(booking.when).getTime() - now.getTime() >= 2 * 60 * 60 * 1000;
+}
+
 export function canTransition(booking: Booking, next: Status): boolean {
   const steps = FLOW[booking.type];
   const index = steps.indexOf(booking.status);
-  if (next === "cancelled") return index === 0 || (booking.type === "medicine" && booking.status === "confirmed");
+  if (next === "cancelled") return canCancel(booking);
   return index >= 0 && steps[index + 1] === next;
 }
 

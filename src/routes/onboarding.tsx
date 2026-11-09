@@ -18,7 +18,7 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 function Onboarding() {
-  const { ready, me, giveConsent, saveHealth } = useStore();
+  const { ready, me, giveConsent, saveHealth, deleteHealthData, logout } = useStore();
   const nav = useNavigate();
   const [agree, setAgree] = useState({ a: false, b: false });
   useEffect(() => {
@@ -26,7 +26,7 @@ function Onboarding() {
     if (!me) nav({ to: "/" });
     else if (me.role !== "senior") nav({ to: "/" });
   }, [ready, me, nav]);
-  if (!me) return null;
+  if (!ready || !me || me.role !== "senior") return null;
   const consented = !!me.consent?.given;
 
   return (
@@ -51,12 +51,14 @@ function Onboarding() {
             </label>
           ))}
           <button className="btn btn-primary mt-6 w-full" disabled={!agree.a || !agree.b} onClick={giveConsent}>I give my consent</button>
+          <button className="mt-4 text-primary underline" onClick={() => { logout(); nav({ to: "/" }); }}>Not now — sign out</button>
         </div>
       ) : (
         <div className="surface mt-3 p-6 md:p-8">
           <h1 className="text-3xl font-bold">Your health profile</h1>
           <p className="mt-2 text-lg text-muted-foreground">This helps us show only meals and sessions that are right for you.</p>
           <HealthForm initial={me.health} initialAddress={me.address} submitLabel="Save & go to home" onSubmit={(h, addr) => { saveHealth(h, addr); nav({ to: "/home" }); }} />
+          <button className="mt-4 text-destructive underline" onClick={() => { deleteHealthData(); setAgree({ a: false, b: false }); }}>Withdraw consent</button>
         </div>
       )}
     </div>

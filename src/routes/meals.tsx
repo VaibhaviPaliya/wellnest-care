@@ -27,15 +27,19 @@ function Meals() {
   const [slot, setSlot] = useState("13:00");
   const [pay, setPay] = useState(false);
   const h = senior?.health;
-  if (!h) return <p className="surface p-6 text-lg">This senior has no health profile yet. <Link to="/home" className="text-primary underline">Go home</Link></p>;
+  if (!h || !senior?.consent?.given) return <p className="surface p-6 text-lg">This senior needs to complete their consent and health profile first. <Link to="/home" className="text-primary underline">Go home</Link></p>;
 
   const kitchens = db.kitchens.filter((k) => k.verified);
   const dishes = db.dishes.filter((d) => kitchens.some((k) => k.id === d.kitchenId) && isSuitable(d, h) && (kitchen === "all" || d.kitchenId === kitchen));
-  const items = Object.entries(cart).filter(([, q]) => q > 0).map(([id, qty]) => ({ d: db.dishes.find((x) => x.id === id)!, qty }));
+  const items = Object.entries(cart).filter(([, q]) => q > 0).flatMap(([id, qty]) => {
+    const d = db.dishes.find((x) => x.id === id);
+    return d && isSuitable(d, h) && kitchens.some((k) => k.id === d.kitchenId) ? [{ d, qty }] : [];
+  });
   const total = items.reduce((s, i) => s + i.d.price * i.qty, 0) + (items.length ? 30 : 0);
   const kitchenIds = [...new Set(items.map((i) => i.d.kitchenId))];
   const add = (id: string, n: number) => {
-    const d = db.dishes.find((x) => x.id === id)!;
+    const d = db.dishes.find((x) => x.id === id);
+    if (!d) return;
     if (n > 0 && kitchenIds.length && !kitchenIds.includes(d.kitchenId)) return toast.error("Please order from one kitchen at a time.");
     setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + n) }));
   };
@@ -43,7 +47,7 @@ function Meals() {
 
   return (
     <>
-      <PageTitle title="Health-Suitable Meals" sub={`Showing only dishes that suit ${senior!.name.split(" ")[0]}: ${[...h.conditions.map((c) => CONDITION_LABEL[c]), DIET_LABEL[h.diet]].join(" · ")}`} />
+      <PageTitle title="Health-Suitable Meals" sub={`Showing only dishes that suit ${senior.name.split(" ")[0]}: ${[...h.conditions.map((c) => CONDITION_LABEL[c]), DIET_LABEL[h.diet]].join(" · ")}`} />
       <div className="mb-5 flex flex-wrap gap-2">
         <button className="chip" aria-pressed={kitchen === "all"} onClick={() => setKitchen("all")}>All kitchens</button>
         {kitchens.map((k) => <button key={k.id} className="chip" aria-pressed={kitchen === k.id} onClick={() => setKitchen(k.id)}>{k.name}</button>)}
@@ -85,6 +89,7 @@ function Meals() {
               <p className="mt-2 flex justify-between text-muted-foreground"><span>Delivery</span><span>₹30</span></p>
               <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
               <p className="mb-2 mt-4 font-bold">Deliver at</p>
+              <p className="mb-2 text-muted-foreground">{(() => { const d = new Date(); const [hour, minute] = slot.split(":").map(Number); d.setHours(hour, minute, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" }); })()}</p>
               <div className="flex flex-wrap gap-2">{["08:30", "13:00", "19:30"].map((s) => <button key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>{s === "08:30" ? "Breakfast" : s === "13:00" ? "Lunch" : "Dinner"} {s}</button>)}</div>
               <button className="btn btn-accent mt-5 w-full" onClick={() => setPay(true)}>Pay ₹{total} with UPI</button>
             </>
@@ -93,8 +98,10 @@ function Meals() {
       </div>
 
       <UpiCheckout open={pay} amount={total} title={`Meal from ${kName(kitchenIds[0] ?? "")}`}
-        onClose={() => { setPay(false); setCart({}); nav({ to: "/activity" }); }}
+        onClose={() => setPay(false)}
+        onDone={() => { setPay(false); setCart({}); nav({ to: "/activity" }); }}
         onPaid={() => {
+          if (!items.length) throw new Error("Your cart is empty. Please choose a suitable dish.");
           const w = new Date(); const [hh, mm] = slot.split(":").map(Number); w.setHours(hh, mm, 0, 0); if (w < new Date()) w.setDate(w.getDate() + 1);
           createBooking({ type: "meal", title: `${slot === "08:30" ? "Breakfast" : slot === "13:00" ? "Lunch" : "Dinner"} from ${kName(kitchenIds[0]).split(" ")[0]}`, partnerId: kitchenIds[0], partnerName: kName(kitchenIds[0]), amount: total, when: w.toISOString(), detail: `${items.length} item(s)`, items: items.map((i) => ({ name: i.d.name, qty: i.qty, price: i.d.price })) });
           toast.success("Order placed! Family members have been alerted.");

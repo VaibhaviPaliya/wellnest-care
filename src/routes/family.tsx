@@ -23,7 +23,7 @@ function Family() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
-  const linked = db.users.filter((u) => me!.linkedSeniorIds.includes(u.id));
+  const linked = db.users.filter((u) => me?.linkedSeniorIds.includes(u.id));
   const link = () => {
     if (otp !== DEMO_OTP) return toast.error("Wrong code. Demo code is 123456.");
     const err = linkSenior(phone);
@@ -43,9 +43,9 @@ function Family() {
       </ul>
       <div className="surface mt-6 max-w-xl p-6">
         <h2 className="flex items-center gap-2 text-2xl font-bold"><Link2 className="h-6 w-6" />Link a senior</h2>
-        <p className="mt-1 text-muted-foreground">We’ll send a code to their phone so they can approve. Try 9876500001.</p>
+        <p className="mt-1 text-muted-foreground">Demo approval uses code {DEMO_OTP}; no SMS is sent. Try 9876500001.</p>
         <label htmlFor="sp" className="mb-1 mt-4 block font-bold">Senior’s mobile number</label>
-        <input id="sp" className="field" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
+        <input id="sp" className="field" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "")); setSent(false); setOtp(""); }} />
         {sent && (<>
           <label htmlFor="so" className="mb-1 mt-4 block font-bold">Code from their phone (demo: {DEMO_OTP})</label>
           <input id="so" className="field" inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
