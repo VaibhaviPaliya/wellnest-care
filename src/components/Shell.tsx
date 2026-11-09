@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone } from "lucide-react";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/seed";
@@ -28,6 +30,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
   }, [ready, me, roles, nav]);
 
   if (!ready || !me) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if ((me.role === "senior" && (!me.consent?.given || !me.health)) || (roles && !roles.includes(me.role))) return null;
   const unread = db.notices.filter((n) => n.userId === me.id && !n.read).length;
   const links = me.role === "admin"
     ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }]
@@ -57,7 +60,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden" style={{ gridTemplateColumns: `repeat(${links.length}, 1fr)` }}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden ${links.length === 1 ? "grid-cols-1" : "grid-cols-4"}`}>
         {links.map((l) => (
           <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-1 py-3 text-sm font-semibold text-muted-foreground" activeProps={{ className: "text-primary" }}>
             <l.icon className="h-6 w-6" />{l.label}
@@ -84,12 +87,26 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: bo
   const [app, setApp] = useState("GPay");
   const [vpa, setVpa] = useState("kamala@okaxis");
   const [stage, setStage] = useState<"form" | "paying" | "done">("form");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paying = useRef(false);
   useEffect(() => { if (open) setStage("form"); }, [open]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   if (!open) return null;
-  const pay = () => { setStage("paying"); setTimeout(() => { setStage("done"); onPaid(); }, 1600); };
+  const pay = () => {
+    if (paying.current) return;
+    paying.current = true;
+    setStage("paying");
+    timer.current = setTimeout(() => {
+      try { onPaid(); setStage("done"); }
+      catch (error) { setStage("form"); toast.error(error instanceof Error ? error.message : "Could not confirm your booking. Please try again."); }
+      finally { paying.current = false; }
+    }, 1600);
+  };
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-foreground/50 sm:place-items-center" role="dialog" aria-modal="true" aria-label="UPI payment">
-      <div className="surface w-full max-w-md rounded-b-none p-6 sm:rounded-b-[1.25rem]">
+    <Dialog open={open} onOpenChange={(value) => { if (!value && stage !== "paying") onClose(); }}>
+      <DialogContent aria-describedby="payment-description" onEscapeKeyDown={(event) => { if (stage === "paying") event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
+        <DialogTitle className="sr-only">UPI payment</DialogTitle>
+        <DialogDescription id="payment-description" className="sr-only">Simulated payment. No money is charged.</DialogDescription>
         {stage === "done" ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
@@ -117,8 +134,8 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: bo
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
