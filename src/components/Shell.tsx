@@ -1,5 +1,8 @@
+import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone } from "lucide-react";
 import { useStore } from "@/lib/store";
 import type { Role } from "@/lib/seed";
@@ -28,6 +31,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
   }, [ready, me, roles, nav]);
 
   if (!ready || !me) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if ((me.role === "senior" && (!me.consent?.given || !me.health)) || (roles && !roles.includes(me.role))) return null;
   const unread = db.notices.filter((n) => n.userId === me.id && !n.read).length;
   const links = me.role === "admin"
     ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }]
@@ -51,13 +55,13 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
               </Link>
             ))}
           </nav>
-          <button onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label="Log out">
+          <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label="Log out">
             <LogOut className="h-5 w-5" /><span className="hidden sm:inline">Log out</span>
-          </button>
+          </Button>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden" style={{ gridTemplateColumns: `repeat(${links.length}, 1fr)` }}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden ${links.length === 1 ? "grid-cols-1" : "grid-cols-4"}`}>
         {links.map((l) => (
           <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-1 py-3 text-sm font-semibold text-muted-foreground" activeProps={{ className: "text-primary" }}>
             <l.icon className="h-6 w-6" />{l.label}
@@ -80,22 +84,36 @@ export function PageTitle({ title, sub, back = true }: { title: string; sub?: st
 }
 
 /** Simulated UPI checkout. */
-export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: () => void }) {
+export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: () => void; onDone: () => void }) {
   const [app, setApp] = useState("GPay");
   const [vpa, setVpa] = useState("kamala@okaxis");
   const [stage, setStage] = useState<"form" | "paying" | "done">("form");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paying = useRef(false);
   useEffect(() => { if (open) setStage("form"); }, [open]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   if (!open) return null;
-  const pay = () => { setStage("paying"); setTimeout(() => { setStage("done"); onPaid(); }, 1600); };
+  const pay = () => {
+    if (paying.current) return;
+    paying.current = true;
+    setStage("paying");
+    timer.current = setTimeout(() => {
+      try { onPaid(); setStage("done"); }
+      catch (error) { setStage("form"); toast.error(error instanceof Error ? error.message : "Could not confirm your booking. Please try again."); }
+      finally { paying.current = false; }
+    }, 1600);
+  };
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-foreground/50 sm:place-items-center" role="dialog" aria-modal="true" aria-label="UPI payment">
-      <div className="surface w-full max-w-md rounded-b-none p-6 sm:rounded-b-[1.25rem]">
+    <Dialog open={open} onOpenChange={(value) => { if (!value && stage !== "paying") { if (stage === "done") onDone(); else onClose(); } }}>
+      <DialogContent aria-describedby="payment-description" onEscapeKeyDown={(event) => { if (stage === "paying") event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
+        <DialogTitle className="sr-only">UPI payment</DialogTitle>
+        <DialogDescription id="payment-description" className="sr-only">Simulated payment. No money is charged.</DialogDescription>
         {stage === "done" ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
             <h2 className="mt-3 text-2xl font-bold">Payment successful</h2>
             <p className="mt-1 text-muted-foreground">₹{amount} paid · Family has been notified</p>
-            <button className="btn btn-primary mt-6 w-full" onClick={onClose}>Done</button>
+            <Button variant="care" size="care" className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</Button>
           </div>
         ) : (
           <>
@@ -104,21 +122,21 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid }: { open: bo
             <p className="my-4 font-display text-4xl font-bold">₹{amount}</p>
             <div className="mb-4 flex flex-wrap gap-2">
               {["GPay", "PhonePe", "Paytm", "BHIM"].map((a) => (
-                <button key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</button>
+                <Button variant="care" size="care" key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</Button>
               ))}
             </div>
             <label className="mb-1 block font-semibold" htmlFor="vpa">UPI ID</label>
             <input id="vpa" className="field" value={vpa} onChange={(e) => setVpa(e.target.value)} />
             <div className="mt-6 flex gap-3">
-              <button className="btn btn-outline flex-1" onClick={onClose} disabled={stage === "paying"}>Cancel</button>
-              <button className="btn btn-accent flex-1" onClick={pay} disabled={stage === "paying" || !vpa.includes("@")}>
+              <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={onClose} disabled={stage === "paying"}>Cancel</Button>
+              <Button variant="care" size="care" className="btn btn-accent flex-1" onClick={pay} disabled={stage === "paying" || !vpa.includes("@")}>
                 {stage === "paying" ? <><Loader2 className="h-5 w-5 animate-spin" />Paying…</> : `Pay with ${app}`}
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

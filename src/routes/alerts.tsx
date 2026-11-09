@@ -7,6 +7,8 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/alerts")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Alerts | WellNest" },
       { name: "description", content: "Booking and order alerts for seniors and their linked family members." },
       { property: "og:title", content: "Alerts | WellNest" },
@@ -18,7 +20,7 @@ export const Route = createFileRoute("/alerts")({
 
 function Alerts() {
   const { db, me, markRead } = useStore();
-  const list = db.notices.filter((n) => n.userId === me!.id);
+  const list = db.notices.filter((n) => n.userId === me?.id);
   useEffect(() => { const t = setTimeout(markRead, 1500); return () => clearTimeout(t); }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <>
