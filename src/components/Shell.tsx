@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -54,9 +55,9 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
               </Link>
             ))}
           </nav>
-          <button onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label="Log out">
+          <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label="Log out">
             <LogOut className="h-5 w-5" /><span className="hidden sm:inline">Log out</span>
-          </button>
+          </Button>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
@@ -112,7 +113,7 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
             <h2 className="mt-3 text-2xl font-bold">Payment successful</h2>
             <p className="mt-1 text-muted-foreground">₹{amount} paid · Family has been notified</p>
-            <button className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</button>
+            <Button variant="care" size="care" className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</Button>
           </div>
         ) : (
           <>
@@ -121,16 +122,16 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
             <p className="my-4 font-display text-4xl font-bold">₹{amount}</p>
             <div className="mb-4 flex flex-wrap gap-2">
               {["GPay", "PhonePe", "Paytm", "BHIM"].map((a) => (
-                <button key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</button>
+                <Button variant="care" size="care" key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</Button>
               ))}
             </div>
             <label className="mb-1 block font-semibold" htmlFor="vpa">UPI ID</label>
             <input id="vpa" className="field" value={vpa} onChange={(e) => setVpa(e.target.value)} />
             <div className="mt-6 flex gap-3">
-              <button className="btn btn-outline flex-1" onClick={onClose} disabled={stage === "paying"}>Cancel</button>
-              <button className="btn btn-accent flex-1" onClick={pay} disabled={stage === "paying" || !vpa.includes("@")}>
+              <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={onClose} disabled={stage === "paying"}>Cancel</Button>
+              <Button variant="care" size="care" className="btn btn-accent flex-1" onClick={pay} disabled={stage === "paying" || !vpa.includes("@")}>
                 {stage === "paying" ? <><Loader2 className="h-5 w-5 animate-spin" />Paying…</> : `Pay with ${app}`}
-              </button>
+              </Button>
             </div>
           </>
         )}

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +11,8 @@ import hero from "@/assets/hero.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "WellNest — Sign in | Care that comes home" },
       { name: "description", content: "Sign in with your phone to book fitness coaches, health-suitable meals and medicine delivery." },
       { property: "og:title", content: "WellNest — Care that comes home" },
@@ -66,10 +69,10 @@ function Login() {
                 <span className="field flex w-auto items-center font-bold">+91</span>
                 <input id="phone" inputMode="numeric" maxLength={10} className="field text-xl tracking-wider" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
               </div>
-              <button className="btn btn-primary mt-4 w-full" onClick={sendOtp}>Send OTP</button>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={sendOtp}>Send OTP</Button>
               <p className="mt-5 text-sm font-bold text-muted-foreground">Try a demo account:</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {DEMOS.map((d) => <button key={d.phone} className="chip text-sm" onClick={() => setPhone(d.phone)}>{d.label}</button>)}
+                {DEMOS.map((d) => <Button variant="care" size="care" key={d.phone} className="chip text-sm" onClick={() => setPhone(d.phone)}>{d.label}</Button>)}
               </div>
             </>
           )}
@@ -78,8 +81,8 @@ function Login() {
               <label htmlFor="otp" className="mb-2 block text-lg font-bold">Enter the 6-digit code sent to +91 {phone}</label>
               <input id="otp" inputMode="numeric" maxLength={6} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
               <p className="mt-2 text-muted-foreground">Demo code: <strong>{DEMO_OTP}</strong></p>
-              <button className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length !== 6}>Verify & continue</button>
-              <button className="mt-3 w-full font-semibold text-primary underline" onClick={() => { setStep("phone"); setOtp(""); }}>Change number</button>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length !== 6}>Verify & continue</Button>
+              <Button variant="care" size="care" className="mt-3 w-full font-semibold text-primary underline" onClick={() => { setStep("phone"); setOtp(""); }}>Change number</Button>
             </>
           )}
           {step === "new" && (
@@ -90,12 +93,12 @@ function Login() {
               <p className="mb-2 mt-4 font-bold">I am a…</p>
               <div className="grid gap-2">
                 {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users], ["admin", "Administrator", "Verify partners & review orders", ShieldCheck]] as const).map(([r, t, s, Icon]) => (
-                  <button key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
+                  <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
                     <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-lg">{t}</strong><span className="text-muted-foreground">{s}</span></span>
-                  </button>
+                  </Button>
                 ))}
               </div>
-              <button className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2} onClick={() => register(phone, name.trim(), role)}>Continue</button>
+              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2} onClick={() => register(phone, name.trim(), role)}>Continue</Button>
             </>
           )}
         </div>

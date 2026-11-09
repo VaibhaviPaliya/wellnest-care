@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,8 @@ import { CONDITION_LABEL, DEMO_OTP } from "@/lib/seed";
 export const Route = createFileRoute("/family")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Family Linking | WellNest" },
       { name: "description", content: "Link to your parent’s WellNest account to monitor bookings and receive alerts." },
       { property: "og:title", content: "Family Linking | WellNest" },
@@ -37,7 +40,7 @@ function Family() {
           <li key={s.id} className={`surface p-5 ${senior?.id === s.id ? "border-primary" : ""}`}>
             <div className="flex items-center gap-3"><UserRound className="h-10 w-10 text-primary" /><div><h2 className="text-xl font-bold">{s.name}</h2><p className="text-muted-foreground">+91 {s.phone}</p></div></div>
             <div className="mt-3 flex flex-wrap gap-1">{s.health?.conditions.map((c) => <span key={c} className="tag">{CONDITION_LABEL[c]}</span>) ?? <span className="text-muted-foreground">Health data not shared</span>}</div>
-            {senior?.id === s.id ? <p className="mt-3 font-bold text-success">Currently managing</p> : <button className="btn btn-outline mt-3" onClick={() => setActiveSenior(s.id)}>Manage {s.name.split(" ")[0]}</button>}
+            {senior?.id === s.id ? <p className="mt-3 font-bold text-success">Currently managing</p> : <Button variant="care" size="care" className="btn btn-outline mt-3" onClick={() => setActiveSenior(s.id)}>Manage {s.name.split(" ")[0]}</Button>}
           </li>
         ))}
       </ul>
@@ -50,7 +53,7 @@ function Family() {
           <label htmlFor="so" className="mb-1 mt-4 block font-bold">Code from their phone (demo: {DEMO_OTP})</label>
           <input id="so" className="field" inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
         </>)}
-        <button className="btn btn-primary mt-4 w-full" disabled={phone.length !== 10} onClick={() => (sent ? link() : (setSent(true), toast.success(`Approval code sent. Demo: ${DEMO_OTP}`)))}>{sent ? "Link account" : "Send approval code"}</button>
+        <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={phone.length !== 10} onClick={() => (sent ? link() : (setSent(true), toast.success(`Approval code sent. Demo: ${DEMO_OTP}`)))}>{sent ? "Link account" : "Send approval code"}</Button>
       </div>
     </>
   );

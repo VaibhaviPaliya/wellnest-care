@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BadgeCheck, FileUp, Check } from "lucide-react";
@@ -10,6 +11,8 @@ import { Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/pharmacy")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Medicines & Doorstep Delivery | WellNest" },
       { name: "description", content: "Upload a doctor’s prescription or pick your medicines, send to a verified pharmacy and track delivery." },
       { property: "og:title", content: "Medicines & Doorstep Delivery | WellNest" },
@@ -57,8 +60,8 @@ function Pharmacy() {
     <>
       <PageTitle title="Medicines & Delivery" sub="Only licensed, verified pharmacies. Pharmacist checks every prescription." />
       <div className="flex gap-2">
-        <button className="chip" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>Upload prescription</button>
-        <button className="chip" aria-pressed={mode === "select"} onClick={() => setMode("select")}>Select medicines</button>
+        <Button variant="care" size="care" className="chip" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>Upload prescription</Button>
+        <Button variant="care" size="care" className="chip" aria-pressed={mode === "select"} onClick={() => setMode("select")}>Select medicines</Button>
       </div>
 
       <div className="mt-5 grid gap-6 md:grid-cols-2">
@@ -83,11 +86,11 @@ function Pharmacy() {
                   const on = picked.includes(m.id);
                   return (
                     <li key={m.id}>
-                      <button onClick={() => setPicked((p) => (on ? p.filter((x) => x !== m.id) : [...p, m.id]))} aria-pressed={on} className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left ${on ? "border-primary bg-secondary" : ""}`}>
+                      <Button variant="care" size="care" onClick={() => setPicked((p) => (on ? p.filter((x) => x !== m.id) : [...p, m.id]))} aria-pressed={on} className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left ${on ? "border-primary bg-secondary" : ""}`}>
                         <span className={`grid h-7 w-7 place-items-center rounded-md border-2 ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check className="h-5 w-5" />}</span>
                         <span className="flex-1"><strong>{m.name}</strong><span className="block text-sm text-muted-foreground">{m.dose}</span></span>
                         <span className="font-bold">₹{m.price}</span>
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
@@ -101,21 +104,21 @@ function Pharmacy() {
           <ul className="mt-3 space-y-2">
             {pharmacies.map((p) => (
               <li key={p.id}>
-                <button onClick={() => setPh(p.id)} aria-pressed={ph === p.id} className={`w-full rounded-xl border-2 p-3 text-left ${ph === p.id ? "border-primary bg-secondary" : ""}`}>
+                <Button variant="care" size="care" onClick={() => setPh(p.id)} aria-pressed={ph === p.id} className={`w-full rounded-xl border-2 p-3 text-left ${ph === p.id ? "border-primary bg-secondary" : ""}`}>
                   <strong className="flex items-center gap-1">{p.name}<BadgeCheck className="h-5 w-5 text-success" /></strong>
                   <span className="text-muted-foreground">{p.area} · delivers in ~{p.eta}</span>
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
           {pharmacies.length === 0 && <p className="mt-3 text-muted-foreground">No verified pharmacies available.</p>}
           <h3 className="mt-5 text-xl font-bold">3. Delivery date & time</h3>
-          <div className="mt-2 flex flex-wrap gap-2">{[0, 1, 2, 3].map((i) => <button key={i} className="chip" aria-pressed={day === i} onClick={() => { setDay(i); setSlot(["09:00", "13:00", "18:00"].find((s) => sessionDate(i, s) > new Date()) ?? "09:00"); }}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : sessionDate(i, "09:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</button>)}</div>
-          <div className="mt-2 flex flex-wrap gap-2">{["09:00", "13:00", "18:00"].map((s) => <button key={s} className="chip" aria-pressed={slot === s} disabled={sessionDate(day, s) <= new Date()} onClick={() => setSlot(s)}>{s}</button>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{[0, 1, 2, 3].map((i) => <Button variant="care" size="care" key={i} className="chip" aria-pressed={day === i} onClick={() => { setDay(i); setSlot(["09:00", "13:00", "18:00"].find((s) => sessionDate(i, s) > new Date()) ?? "09:00"); }}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : sessionDate(i, "09:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</Button>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{["09:00", "13:00", "18:00"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} disabled={sessionDate(day, s) <= new Date()} onClick={() => setSlot(s)}>{s}</Button>)}</div>
           <p className="mt-4 flex justify-between"><span>Medicines</span><span>₹{subtotal}</span></p>
           <p className="flex justify-between text-muted-foreground"><span>Delivery</span><span>₹20</span></p>
           <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
-          <button className="btn btn-accent mt-4 w-full" disabled={!can} onClick={() => setPay(true)}>Send to pharmacy & pay</button>
+          <Button variant="care" size="care" className="btn btn-accent mt-4 w-full" disabled={!can} onClick={() => setPay(true)}>Send to pharmacy & pay</Button>
         </div>
       </div>
 

@@ -7,6 +7,8 @@ import { CONDITION_LABEL } from "@/lib/seed";
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Home | WellNest" },
       { name: "description", content: "Your fitness sessions, meals and medicine deliveries at a glance." },
       { property: "og:title", content: "Home | WellNest" },
@@ -24,7 +26,7 @@ const TILES = [
 
 function HomePage() {
   const { me, senior, db } = useStore();
-  if (!senior) return <NoSenior />;
+  if (!me || !senior) return <NoSenior />;
   const mine = db.bookings.filter((b) => b.seniorId === senior.id && !["completed", "cancelled"].includes(b.status)).sort((a, b) => a.when.localeCompare(b.when));
   const todayStr = new Date().toDateString();
   const today = mine.filter((b) => new Date(b.when).toDateString() === todayStr);
@@ -34,8 +36,8 @@ function HomePage() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold md:text-4xl">{greet}, {me!.name.split(" ")[0]}</h1>
-      {me!.role === "family" ? (
+      <h1 className="text-3xl font-bold md:text-4xl">{greet}, {me.name.split(" ")[0]}</h1>
+      {me.role === "family" ? (
         <p className="mt-1 text-lg text-muted-foreground">You’re looking after <strong className="text-foreground">{senior.name}</strong>. Anything you book is for them.</p>
       ) : (
         <p className="mt-1 text-lg text-muted-foreground">What would you like help with today?</p>

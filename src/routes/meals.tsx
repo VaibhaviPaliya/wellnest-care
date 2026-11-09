@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BadgeCheck, Minus, Plus, Sparkles } from "lucide-react";
@@ -10,6 +11,8 @@ import { CONDITION_LABEL, DIET_LABEL, TAG_LABEL } from "@/lib/seed";
 export const Route = createFileRoute("/meals")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Health-Suitable Meals | WellNest" },
       { name: "description", content: "Meals from verified partner kitchens, filtered by your health profile — low sugar, low sodium, low oil, soft food." },
       { property: "og:title", content: "Health-Suitable Meals | WellNest" },
@@ -49,8 +52,8 @@ function Meals() {
     <>
       <PageTitle title="Health-Suitable Meals" sub={`Showing only dishes that suit ${senior.name.split(" ")[0]}: ${[...h.conditions.map((c) => CONDITION_LABEL[c]), DIET_LABEL[h.diet]].join(" · ")}`} />
       <div className="mb-5 flex flex-wrap gap-2">
-        <button className="chip" aria-pressed={kitchen === "all"} onClick={() => setKitchen("all")}>All kitchens</button>
-        {kitchens.map((k) => <button key={k.id} className="chip" aria-pressed={kitchen === k.id} onClick={() => setKitchen(k.id)}>{k.name}</button>)}
+        <Button variant="care" size="care" className="chip" aria-pressed={kitchen === "all"} onClick={() => setKitchen("all")}>All kitchens</Button>
+        {kitchens.map((k) => <Button variant="care" size="care" key={k.id} className="chip" aria-pressed={kitchen === k.id} onClick={() => setKitchen(k.id)}>{k.name}</Button>)}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -69,11 +72,11 @@ function Meals() {
                 <span className="font-display text-2xl font-bold">₹{d.price}</span>
                 {cart[d.id] ? (
                   <div className="flex items-center gap-2">
-                    <button className="btn btn-outline min-h-11 px-3" aria-label="Remove one" onClick={() => add(d.id, -1)}><Minus className="h-5 w-5" /></button>
+                    <Button variant="care" size="care" className="btn btn-outline min-h-11 px-3" aria-label="Remove one" onClick={() => add(d.id, -1)}><Minus className="h-5 w-5" /></Button>
                     <span className="w-6 text-center text-xl font-bold">{cart[d.id]}</span>
-                    <button className="btn btn-primary min-h-11 px-3" aria-label="Add one" onClick={() => add(d.id, 1)}><Plus className="h-5 w-5" /></button>
+                    <Button variant="care" size="care" className="btn btn-primary min-h-11 px-3" aria-label="Add one" onClick={() => add(d.id, 1)}><Plus className="h-5 w-5" /></Button>
                   </div>
-                ) : <button className="btn btn-primary" onClick={() => add(d.id, 1)}>Add</button>}
+                ) : <Button variant="care" size="care" className="btn btn-primary" onClick={() => add(d.id, 1)}>Add</Button>}
               </div>
             </li>
           ))}
@@ -90,8 +93,8 @@ function Meals() {
               <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
               <p className="mb-2 mt-4 font-bold">Deliver at</p>
               <p className="mb-2 text-muted-foreground">{(() => { const d = new Date(); const [hour, minute] = slot.split(":").map(Number); d.setHours(hour, minute, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" }); })()}</p>
-              <div className="flex flex-wrap gap-2">{["08:30", "13:00", "19:30"].map((s) => <button key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>{s === "08:30" ? "Breakfast" : s === "13:00" ? "Lunch" : "Dinner"} {s}</button>)}</div>
-              <button className="btn btn-accent mt-5 w-full" onClick={() => setPay(true)}>Pay ₹{total} with UPI</button>
+              <div className="flex flex-wrap gap-2">{["08:30", "13:00", "19:30"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>{s === "08:30" ? "Breakfast" : s === "13:00" ? "Lunch" : "Dinner"} {s}</Button>)}</div>
+              <Button variant="care" size="care" className="btn btn-accent mt-5 w-full" onClick={() => setPay(true)}>Pay ₹{total} with UPI</Button>
             </>
           )}
         </aside>

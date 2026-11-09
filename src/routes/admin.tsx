@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,8 @@ import { FLOW, canCancel } from "@/lib/booking-rules";
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Admin Dashboard | WellNest" },
       { name: "description", content: "Verify partners, tag dishes for health suitability and review orders and bookings." },
       { property: "og:title", content: "Admin Dashboard | WellNest" },
@@ -38,13 +41,13 @@ function Admin() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-3xl font-bold md:text-4xl">Admin dashboard</h1>
-        {reset ? <div className="flex flex-wrap gap-2"><button className="btn btn-outline min-h-11 text-base" onClick={() => setReset(false)}>Keep data</button><button className="btn btn-danger min-h-11 text-base" onClick={() => { resetDemo(); toast.success("Demo data reset. Please sign in again."); }}>Confirm reset</button></div> : <button className="btn btn-outline min-h-11 text-base" onClick={() => setReset(true)}>Reset demo data</button>}
+        {reset ? <div className="flex flex-wrap gap-2"><Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setReset(false)}>Keep data</Button><Button variant="care" size="care" className="btn btn-danger min-h-11 text-base" onClick={() => { resetDemo(); toast.success("Demo data reset. Please sign in again."); }}>Confirm reset</Button></div> : <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setReset(true)}>Reset demo data</Button>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-3xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
       </div>
       <div className="my-6 flex flex-wrap gap-2">
-        {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"]] as const).map(([k, l]) => <button key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>)}
+        {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"]] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
       </div>
 
       {tab === "partners" && (
@@ -61,10 +64,10 @@ function Admin() {
                     <div><p className="font-bold">{r.name}</p><p className="text-sm capitalize text-muted-foreground">{r.sub}</p></div>
                     <label className="flex cursor-pointer items-center gap-3">
                       <span className={`font-bold ${r.verified ? "text-success" : "text-destructive"}`}>{r.verified ? "Verified" : "Unverified"}</span>
-                      <button role="switch" aria-checked={r.verified} aria-label={`Verify ${r.name}`} onClick={() => toggleVerify(kind, r.id)}
+                      <Button variant="care" size="care" role="switch" aria-checked={r.verified} aria-label={`Verify ${r.name}`} onClick={() => toggleVerify(kind, r.id)}
                         className={`relative h-8 w-14 rounded-full transition ${r.verified ? "bg-success" : "bg-input"}`}>
                         <span className={`absolute top-1 h-6 w-6 rounded-full bg-card transition-all ${r.verified ? "left-7" : "left-1"}`} />
-                      </button>
+                      </Button>
                     </label>
                   </li>
                 ))}
@@ -83,7 +86,7 @@ function Admin() {
                 <p className="font-bold">{d.name} <span className="font-normal text-muted-foreground">· {kName(d.kitchenId)} · {d.diet}</span></p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(Object.keys(TAG_LABEL) as DietTag[]).map((t) => (
-                    <button key={t} className="chip min-h-9 px-3 py-1 text-sm" aria-pressed={d.tags.includes(t)} onClick={() => toggleDishTag(d.id, t)}>{TAG_LABEL[t]}</button>
+                    <Button variant="care" size="care" key={t} className="chip min-h-9 px-3 py-1 text-sm" aria-pressed={d.tags.includes(t)} onClick={() => toggleDishTag(d.id, t)}>{TAG_LABEL[t]}</Button>
                   ))}
                 </div>
               </li>
@@ -102,7 +105,7 @@ function Admin() {
                 <tr key={b.id} className="border-b">
                   <td className="p-3 font-bold">{b.title}{b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-2 block text-sm text-primary underline">View prescription</a>}<p className="text-sm font-normal text-muted-foreground">{b.detail}</p></td><td className="p-3">{uName(b.seniorId)}</td><td className="p-3">{uName(b.bookedBy)}</td>
                   <td className="p-3">{b.partnerName}</td><td className="p-3">{fmtWhen(b.when)}</td><td className="p-3">₹{b.amount}</td>
-                  <td className="p-3"><span className="tag">{STATUS_LABEL[b.status]}</span>{(() => { const steps = FLOW[b.type]; const idx = steps.indexOf(b.status); const next = idx >= 0 ? steps[idx + 1] : undefined; return next ? <button className="btn btn-outline mt-2 min-h-11 text-sm" onClick={() => setStatus(b.id, next)}>{b.status === "pending_review" ? "Approve order" : `Mark ${STATUS_LABEL[next]}`}</button> : null; })()}{canCancel(b) && <button className="mt-2 block text-sm text-destructive underline" onClick={() => setStatus(b.id, "cancelled")}>Cancel order</button>}</td>
+                  <td className="p-3"><span className="tag">{STATUS_LABEL[b.status]}</span>{(() => { const steps = FLOW[b.type]; const idx = steps.indexOf(b.status); const next = idx >= 0 ? steps[idx + 1] : undefined; return next ? <Button variant="care" size="care" className="btn btn-outline mt-2 min-h-11 text-sm" onClick={() => setStatus(b.id, next)}>{b.status === "pending_review" ? "Approve order" : `Mark ${STATUS_LABEL[next]}`}</Button> : null; })()}{canCancel(b) && <Button variant="care" size="care" className="mt-2 block text-sm text-destructive underline" onClick={() => setStatus(b.id, "cancelled")}>Cancel order</Button>}</td>
                   <td className="p-3">{b.review ? `${"★".repeat(b.review.rating)}` : "—"}</td>
                 </tr>
               ))}

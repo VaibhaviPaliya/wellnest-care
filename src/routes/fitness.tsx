@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BadgeCheck, Home, Monitor, Star } from "lucide-react";
@@ -11,6 +12,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 export const Route = createFileRoute("/fitness")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Fitness Coaches for Seniors | WellNest" },
       { name: "description", content: "Book verified yoga, mobility and meditation coaches for home visits or live online classes." },
       { property: "og:title", content: "Fitness Coaches for Seniors | WellNest" },
@@ -68,7 +71,7 @@ function Fitness() {
               <span className="tag capitalize">{c.level}</span>
               {c.mode.map((m) => <span key={m} className="tag">{m === "home" ? <><Home className="mr-1 h-3.5 w-3.5" />Home</> : <><Monitor className="mr-1 h-3.5 w-3.5" />Online</>}</span>)}
             </div>
-            <button className="btn btn-primary mt-4 w-full" onClick={() => choose(c)}>Choose a slot</button>
+            <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={() => choose(c)}>Choose a slot</Button>
           </li>
         ))}
         {list.length === 0 && <p className="surface p-6 text-lg">No coaches match. Try “Any”.</p>}
@@ -80,16 +83,16 @@ function Fitness() {
             <DialogTitle className="text-2xl font-bold">Book with {sel.coach.name}</DialogTitle>
             <DialogDescription>Available times in your local time zone.</DialogDescription>
             <p className="mb-2 mt-4 font-bold">Session</p>
-            <div className="flex flex-wrap gap-2">{sel.coach.types.map((t) => <button key={t} className="chip capitalize" aria-pressed={sel.kind === t} onClick={() => setSel({ ...sel, kind: t })}>{t}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{sel.coach.types.map((t) => <Button variant="care" size="care" key={t} className="chip capitalize" aria-pressed={sel.kind === t} onClick={() => setSel({ ...sel, kind: t })}>{t}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">How</p>
-            <div className="flex flex-wrap gap-2">{sel.coach.mode.map((m) => <button key={m} className="chip" aria-pressed={sel.mode === m} onClick={() => setSel({ ...sel, mode: m })}>{m === "home" ? "Home visit" : "Online live"}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{sel.coach.mode.map((m) => <Button variant="care" size="care" key={m} className="chip" aria-pressed={sel.mode === m} onClick={() => setSel({ ...sel, mode: m })}>{m === "home" ? "Home visit" : "Online live"}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">Day</p>
-            <div className="flex flex-wrap gap-2">{days.map((d, i) => <button key={i} className="chip" aria-pressed={sel.day === i} disabled={!sel.coach.slots.some((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings))} onClick={() => setSel({ ...sel, day: i, slot: sel.coach.slots.find((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings)) ?? "" })}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{days.map((d, i) => <Button variant="care" size="care" key={i} className="chip" aria-pressed={sel.day === i} disabled={!sel.coach.slots.some((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings))} onClick={() => setSel({ ...sel, day: i, slot: sel.coach.slots.find((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings)) ?? "" })}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">Time</p>
-            <div className="flex flex-wrap gap-2">{sel.coach.slots.map((s) => <button key={s} className="chip" disabled={!isSlotAvailable(sel.day, s, sel.coach.id, db.bookings)} aria-pressed={sel.slot === s} onClick={() => setSel({ ...sel, slot: s })}>{s}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{sel.coach.slots.map((s) => <Button variant="care" size="care" key={s} className="chip" disabled={!isSlotAvailable(sel.day, s, sel.coach.id, db.bookings)} aria-pressed={sel.slot === s} onClick={() => setSel({ ...sel, slot: s })}>{s}</Button>)}</div>
             <div className="mt-6 flex gap-3">
-              <button className="btn btn-outline flex-1" onClick={() => setSel(null)}>Cancel</button>
-              <button className="btn btn-accent flex-1" disabled={!available} onClick={() => setPay(true)}>Pay ₹{sel.coach.price}</button>
+              <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={() => setSel(null)}>Cancel</Button>
+              <Button variant="care" size="care" className="btn btn-accent flex-1" disabled={!available} onClick={() => setPay(true)}>Pay ₹{sel.coach.price}</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -109,7 +112,7 @@ function Filter<V extends string>({ label, value, set, opts }: { label: string; 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="w-16 font-bold">{label}</span>
-      {opts.map(([v, l]) => <button key={v} className="chip" aria-pressed={value === v} onClick={() => set(v)}>{l}</button>)}
+      {opts.map(([v, l]) => <Button variant="care" size="care" key={v} className="chip" aria-pressed={value === v} onClick={() => set(v)}>{l}</Button>)}
     </div>
   );
 }

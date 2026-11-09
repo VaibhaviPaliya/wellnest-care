@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Star, Dumbbell, Soup, Pill } from "lucide-react";
@@ -10,6 +11,8 @@ import { FLOW, canCancel } from "@/lib/booking-rules";
 export const Route = createFileRoute("/activity")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Bookings & Orders | WellNest" },
       { name: "description", content: "Track fitness sessions, meal orders and medicine deliveries, and leave reviews." },
       { property: "og:title", content: "Bookings & Orders | WellNest" },
@@ -31,8 +34,8 @@ function Activity() {
     <>
       <PageTitle title="Bookings & Orders" sub={`For ${senior.name}`} />
       <div className="mb-5 flex gap-2">
-        <button className="chip" aria-pressed={tab === "active"} onClick={() => setTab("active")}>Active</button>
-        <button className="chip" aria-pressed={tab === "past"} onClick={() => setTab("past")}>Past</button>
+        <Button variant="care" size="care" className="chip" aria-pressed={tab === "active"} onClick={() => setTab("active")}>Active</Button>
+        <Button variant="care" size="care" className="chip" aria-pressed={tab === "past"} onClick={() => setTab("past")}>Past</Button>
       </div>
       <ul className="space-y-4">
         {list.map((b) => <BookingCard key={b.id} b={b} />)}
@@ -78,8 +81,8 @@ function BookingCard({ b }: { b: Booking }) {
 
       {idx >= 0 && idx < steps.length - 1 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button className="btn btn-outline min-h-11 text-base" onClick={() => setStatus(b.id, steps[idx + 1])}>Simulate next update →</button>
-          {canCancel(b) && <button className="btn btn-outline min-h-11 text-base text-destructive" onClick={() => { setStatus(b.id, "cancelled"); toast("Cancelled. Demo refund recorded; no real money was charged."); }}>Cancel</button>}
+          <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setStatus(b.id, steps[idx + 1])}>Simulate next update →</Button>
+          {canCancel(b) && <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base text-destructive" onClick={() => { setStatus(b.id, "cancelled"); toast("Cancelled. Demo refund recorded; no real money was charged."); }}>Cancel</Button>}
         </div>
       )}
       {idx >= 0 && idx < steps.length - 1 && !canCancel(b) && <p className="mt-2 text-sm text-muted-foreground">Cancellation closes 2 hours before the scheduled time.</p>}
@@ -91,11 +94,11 @@ function BookingCard({ b }: { b: Booking }) {
           <p className="font-bold">How was it? (optional)</p>
           <div className="mt-2 flex gap-1">
             {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} aria-label={`${n} stars`} onClick={() => setRating(n)}><Star className={`h-9 w-9 ${n <= rating ? "fill-warn text-warn" : "text-muted-foreground"}`} /></button>
+              <Button variant="care" size="care" key={n} aria-label={`${n} stars`} onClick={() => setRating(n)}><Star className={`h-9 w-9 ${n <= rating ? "fill-warn text-warn" : "text-muted-foreground"}`} /></Button>
             ))}
           </div>
           <textarea className="field mt-2" rows={2} placeholder="Write a few words (optional)" value={text} onChange={(e) => setText(e.target.value)} />
-          <button className="btn btn-primary mt-2" disabled={!rating} onClick={() => { review(b.id, rating, text); toast.success("Thank you for your review!"); }}>Submit review</button>
+          <Button variant="care" size="care" className="btn btn-primary mt-2" disabled={!rating} onClick={() => { review(b.id, rating, text); toast.success("Thank you for your review!"); }}>Submit review</Button>
         </div>
       ))}
     </li>
