@@ -3,6 +3,7 @@ import {
   seedBookings, seedCoaches, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
   type Booking, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User,
 } from "./seed";
+import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
 
 export interface DB {
   users: User[]; coaches: Coach[]; kitchens: Kitchen[]; dishes: Dish[]; pharmacies: Pharmacy[];
@@ -25,6 +26,7 @@ interface Ctx {
   deleteHealthData: () => void;
   linkSenior: (phone: string) => string | null;
   setActiveSenior: (id: string) => void;
+  unlinkFamily: (id: string) => void;
   createBooking: (b: Omit<Booking, "id" | "createdAt" | "status" | "seniorId" | "bookedBy" | "upiRef">) => Booking;
   setStatus: (id: string, s: Status) => void;
   review: (id: string, rating: number, text: string) => void;
@@ -39,17 +41,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [db, setDb] = useState<DB>(fresh);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    try { const raw = localStorage.getItem(KEY); if (raw) setDb(JSON.parse(raw)); } catch { /* ignore */ }
+    const restore = (raw: string) => {
+      const saved = JSON.parse(raw) as DB;
+      if (!Array.isArray(saved.users) || !Array.isArray(saved.bookings) || !Array.isArray(saved.notices) || !Array.isArray(saved.coaches) || !Array.isArray(saved.kitchens) || !Array.isArray(saved.dishes) || !Array.isArray(saved.pharmacies)) return;
+      setDb({ ...fresh(), ...saved });
+    };
+    try { const raw = localStorage.getItem(KEY); if (raw) restore(raw); } catch { /* use fresh demo */ }
     setReady(true);
-    const onStorage = (e: StorageEvent) => { if (e.key === KEY && e.newValue) setDb(JSON.parse(e.newValue)); };
+    const onStorage = (e: StorageEvent) => { if (e.key === KEY && e.newValue) { try { restore(e.newValue); } catch { /* ignore invalid data */ } } };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-  useEffect(() => { if (ready) localStorage.setItem(KEY, JSON.stringify(db)); }, [db, ready]);
+  useEffect(() => { if (ready) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage unavailable */ } } }, [db, ready]);
 
   const me = db.users.find((u) => u.id === db.currentUserId) ?? null;
   const senior = me?.role === "senior" ? me
-    : me?.role === "family" ? db.users.find((u) => u.id === (db.activeSeniorId ?? me.linkedSeniorIds[0])) ?? null
+    : me?.role === "family" ? db.users.find((u) => u.id === (me.linkedSeniorIds.includes(db.activeSeniorId ?? "") ? db.activeSeniorId : me.linkedSeniorIds[0]) && u.role === "senior") ?? null
     : null;
 
   const update = useCallback((fn: (d: DB) => DB) => setDb((d) => fn(d)), []);
@@ -70,15 +77,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return u;
     },
     register: (phone, name, role) => {
+      const existing = db.users.find((u) => u.phone === phone);
+      if (existing) return existing;
       const u: User = { id: uid("u"), phone, name, role, linkedSeniorIds: [] };
-      update((d) => ({ ...d, users: [...d.users, u], currentUserId: u.id }));
+      update((d) => ({ ...d, users: [...d.users, u], currentUserId: u.id, activeSeniorId: null }));
       return u;
     },
     logout: () => update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })),
-    giveConsent: () => patchMe((u) => ({ ...u, consent: { given: true, at: new Date().toISOString() } })),
-    saveHealth: (h, address) => patchMe((u) => ({ ...u, health: h, address: address ?? u.address })),
-    deleteHealthData: () => patchMe((u) => ({ ...u, health: undefined, consent: undefined })),
+    giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
+    saveHealth: (h, address) => patchMe((u) => u.role === "senior" && u.consent?.given ? ({ ...u, health: h, address: address ?? u.address }) : u),
+    deleteHealthData: () => patchMe((u) => u.role === "senior" ? ({ ...u, health: undefined, consent: undefined }) : u),
     linkSenior: (phone) => {
+      if (me?.role !== "family") return "Only family accounts can link a senior.";
       const s = db.users.find((u) => u.phone === phone && u.role === "senior");
       if (!s) return "No senior account found with that number.";
       if (me?.linkedSeniorIds.includes(s.id)) return "Already linked.";
@@ -89,24 +99,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }));
       return null;
     },
-    setActiveSenior: (id) => update((d) => ({ ...d, activeSeniorId: id })),
+    setActiveSenior: (id) => { if (me?.role === "family" && me.linkedSeniorIds.includes(id)) update((d) => ({ ...d, activeSeniorId: id })); },
+    unlinkFamily: (id) => {
+      if (me?.role !== "senior") return;
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === id ? { ...u, linkedSeniorIds: u.linkedSeniorIds.filter((sid) => sid !== me.id) } : u) }));
+    },
     createBooking: (b) => {
-      const sid = senior!.id;
-      const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: "confirmed", seniorId: sid, bookedBy: me!.id, upiRef: "UPI" + Math.floor(1e6 + Math.random() * 9e6) };
-      const who = me!.id === sid ? senior!.name : `${me!.name} (for ${senior!.name})`;
+      if (!me || !senior || !canManageSenior(me, senior)) throw new Error("Link a senior before booking.");
+      if (!senior.consent?.given || !senior.health) throw new Error("The senior must complete their consent and health profile first.");
+      const partners = b.type === "fitness" ? db.coaches : b.type === "meal" ? db.kitchens : db.pharmacies;
+      if (!partners.some((p) => p.id === b.partnerId && p.verified)) throw new Error("This partner is not available.");
+      if (new Date(b.when) <= new Date()) throw new Error("Please select a future time.");
+      const sid = senior.id;
+      const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: "UPI" + Math.floor(1e6 + Math.random() * 9e6) };
+      const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
       update((d) => ({ ...d, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order confirmed"}: ${b.title}`, `${who} · ${b.partnerName} · ₹${b.amount} paid via UPI`) }));
       return booking;
     },
     setStatus: (id, s) => update((d) => {
-      const b = d.bookings.find((x) => x.id === id)!;
+      const b = d.bookings.find((x) => x.id === id);
+      if (!b || !canAccessBooking(me, b) || !canTransition(b, s)) return d;
       const label = { confirmed: "Confirmed", in_progress: "Being prepared", out_for_delivery: "Out for delivery", completed: "Completed", cancelled: "Cancelled", pending_review: "Pharmacy reviewing" }[s];
       return { ...d, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, `Update from ${b.partnerName}`) };
     }),
-    review: (id, rating, text) => update((d) => ({ ...d, bookings: d.bookings.map((x) => (x.id === id ? { ...x, review: { rating, text } } : x)) })),
+    review: (id, rating, text) => update((d) => ({ ...d, bookings: d.bookings.map((x) => (x.id === id && x.status === "completed" && !x.review && me?.role !== "admin" && canAccessBooking(me, x) && Number.isInteger(rating) && rating >= 1 && rating <= 5 ? { ...x, review: { rating, text: text.trim() } } : x)) })),
     markRead: () => update((d) => ({ ...d, notices: d.notices.map((n) => (n.userId === d.currentUserId ? { ...n, read: true } : n)) })),
-    toggleVerify: (kind, id) => update((d) => ({ ...d, [kind]: (d[kind] as { id: string; verified: boolean }[]).map((x) => (x.id === id ? { ...x, verified: !x.verified } : x)) })),
-    toggleDishTag: (dishId, tag) => update((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === dishId ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x)) })),
-    resetDemo: () => setDb(fresh()),
+    toggleVerify: (kind, id) => { if (me?.role === "admin") update((d) => ({ ...d, [kind]: d[kind].map((x) => (x.id === id ? { ...x, verified: !x.verified } : x)) })); },
+    toggleDishTag: (dishId, tag) => { if (me?.role === "admin") update((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === dishId ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x)) })); },
+    resetDemo: () => { if (me?.role === "admin") setDb(fresh()); },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [db, ready, me, senior]);
 
