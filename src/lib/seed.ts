@@ -19,7 +19,12 @@ export interface User {
   health?: HealthProfile;
   linkedSeniorIds: string[];
   address?: string;
+  username?: string;
+  email?: string;
+  age?: number;
+  city?: string;
 }
+export interface ProfileDetails { name: string; username: string; email?: string; phone?: string; age?: number; city?: string; }
 export interface Coach {
   id: string; name: string; types: ("yoga" | "mobility" | "meditation")[];
   level: "gentle" | "moderate"; mode: ("home" | "online")[]; price: number;
