@@ -69,7 +69,7 @@ function Login() {
                 <span className="field flex w-auto items-center font-bold">+91</span>
                 <input id="phone" inputMode="numeric" maxLength={10} className="field text-xl tracking-wider" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
               </div>
-              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={sendOtp}>Send OTP</Button>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready} onClick={sendOtp}>Send OTP</Button>
               <p className="mt-5 text-sm font-bold text-muted-foreground">Try a demo account:</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {DEMOS.map((d) => <Button variant="care" size="care" key={d.phone} className="chip text-sm" onClick={() => setPhone(d.phone)}>{d.label}</Button>)}
