@@ -34,12 +34,13 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
   if ((me.role === "senior" && (!me.consent?.given || !me.health)) || (roles && !roles.includes(me.role))) return null;
   const unread = db.notices.filter((n) => n.userId === me.id && !n.read).length;
   const links = me.role === "admin"
-    ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }]
+    ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }, { to: "/profile", label: "Profile", icon: UserRound }]
     : [
         { to: "/home", label: "Home", icon: Home },
         { to: "/activity", label: "Bookings", icon: ClipboardList },
         { to: "/alerts", label: "Alerts", icon: Bell, badge: unread },
         me.role === "family" ? { to: "/family", label: "Family", icon: Users } : { to: "/profile", label: "Profile", icon: UserRound },
+        ...(me.role === "family" ? [{ to: "/profile", label: "Profile", icon: UserRound }] : []),
       ];
 
   return (
@@ -61,7 +62,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden ${links.length === 1 ? "grid-cols-1" : "grid-cols-4"}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {links.map((l) => (
           <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-1 py-3 text-sm font-semibold text-muted-foreground" activeProps={{ className: "text-primary" }}>
             <l.icon className="h-6 w-6" />{l.label}

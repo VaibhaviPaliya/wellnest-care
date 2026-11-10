@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { toast } from "sonner";
 import { ShieldCheck, Trash2 } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { HealthForm } from "@/components/HealthForm";
 import { useStore } from "@/lib/store";
+import type { User } from "@/lib/seed";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/profile")({
       { property: "og:description", content: "Control your health data on WellNest." },
     ],
   }),
-  component: () => <Shell roles={["senior"]}><Profile /></Shell>,
+  component: () => <Shell><Profile /></Shell>,
 });
 
 function Profile() {
@@ -28,9 +29,17 @@ function Profile() {
   const [revoke, setRevoke] = useState<string | null>(null);
   if (!me) return null;
   const family = db.users.filter((u) => u.linkedSeniorIds.includes(me.id));
+  const sub = [me.username && `@${me.username}`, me.phone && `+91 ${me.phone}`, me.email].filter(Boolean).join(" · ");
+  if (me.role !== "senior") return (
+    <>
+      <PageTitle title="My Profile" sub={sub} back={me.role !== "admin"} />
+      <div className="surface max-w-2xl p-6"><DetailsForm me={me} /></div>
+    </>
+  );
   return (
     <>
-      <PageTitle title="My Profile" sub={`${me.name} · +91 ${me.phone}`} />
+      <PageTitle title="My Profile" sub={sub} />
+      <div className="surface mb-6 p-6"><DetailsForm me={me} /></div>
       <div className="grid gap-6 md:grid-cols-[1fr_320px]">
         <div className="surface p-6">
           <h2 className="text-2xl font-bold">Health profile</h2>
@@ -55,6 +64,34 @@ function Profile() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+function DetailsForm({ me }: { me: User }) {
+  const { updateProfile } = useStore();
+  const [f, setF] = useState({ name: me.name, username: me.username ?? "", email: me.email ?? "", phone: me.phone ?? "", age: me.age ? String(me.age) : "", city: me.city ?? "" });
+  const set = (k: keyof typeof f) => (e: ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  const save = () => {
+    const err = updateProfile({ name: f.name, username: f.username, email: f.email, phone: f.phone, age: f.age ? Number(f.age) : undefined, city: f.city });
+    if (err) toast.error(err); else toast.success("Profile details saved.");
+  };
+  const field = (k: keyof typeof f, label: string, extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
+    <div><label htmlFor={`pf-${k}`} className="mb-1 block font-bold">{label}</label><input id={`pf-${k}`} className="field" value={f[k]} onChange={set(k)} {...extra} /></div>
+  );
+  return (
+    <>
+      <h2 className="text-2xl font-bold">Profile details</h2>
+      <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : "Administrator"}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {field("name", "Full name")}
+        {field("username", "Username")}
+        {field("phone", "Mobile number", { inputMode: "numeric", maxLength: 10 })}
+        {field("email", "Email", { type: "email" })}
+        {field("age", "Age", { inputMode: "numeric", maxLength: 3 })}
+        {field("city", "City")}
+      </div>
+      <Button variant="care" size="care" className="btn btn-primary mt-5 w-full sm:w-auto" onClick={save}>Save details</Button>
     </>
   );
 }
