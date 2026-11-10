@@ -15,6 +15,13 @@ async function store(phone = "9876543210") {
 }
 
 describe("WellNest care rules", () => {
+  it("does not let a new registration choose the admin role", async () => {
+    const hook = renderHook(() => useStore(), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    expect(() => hook.result.current.register("9000000002", "Sneaky", "admin", { username: "sneaky" })).toThrow();
+    expect(hook.result.current.db.users.some((u) => u.phone === "9000000002")).toBe(false);
+  });
+
   it("never saves health information before explicit consent", async () => {
     const result = await store();
     act(() => { result.current.register("9000000001", "New Senior", "senior"); });
