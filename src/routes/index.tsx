@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { HeartHandshake, ShieldCheck, Users } from "lucide-react";
+import { HeartHandshake, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { DEMO_OTP, type Role } from "@/lib/seed";
@@ -143,7 +143,7 @@ function Login() {
               </div>
               <p className="mb-2 mt-4 font-bold">I am a…</p>
               <div className="grid gap-2">
-                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users], ["admin", "Administrator", "Verify partners & review orders", ShieldCheck]] as const).map(([r, t, s, Icon]) => (
+                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users]] as const).map(([r, t, s, Icon]) => (
                   <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
                     <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-lg">{t}</strong><span className="text-muted-foreground">{s}</span></span>
                   </Button>

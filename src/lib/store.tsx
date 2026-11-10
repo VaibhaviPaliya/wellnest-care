@@ -79,6 +79,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return u;
     },
     register: (phone, name, role, extra = {}) => {
+      if (role !== "senior" && role !== "family") throw new Error("Only Senior or Family accounts can be registered.");
       const email = extra.email?.trim().toLowerCase() || undefined;
       const existing = db.users.find((u) => (phone && u.phone === phone) || (email && u.email?.toLowerCase() === email));
       if (existing) return existing;
