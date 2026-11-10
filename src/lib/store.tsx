@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   seedBookings, seedCoaches, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
-  type Booking, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User,
+  type Booking, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails,
 } from "./seed";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
 
