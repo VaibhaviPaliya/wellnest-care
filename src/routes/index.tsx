@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { HeartHandshake, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type Role } from "@/lib/seed";
 import hero from "@/assets/hero.jpg";
 
@@ -29,7 +30,8 @@ const DEMOS = [
 ];
 
 function Login() {
-  const { ready, me, login, register } = useStore();
+  const { ready, me, login, register, pendingCloud, completeCloudRegistration } = useStore();
+  const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const [mode, setMode] = useState<"signin" | "register">("signin");
   const [method, setMethod] = useState<"phone" | "email">("phone");
@@ -49,13 +51,29 @@ function Login() {
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
-  const sendOtp = () => {
+  useEffect(() => { if (pendingCloud) { setMethod("email"); setEmail(pendingCloud.email); setStep("new"); } }, [pendingCloud]);
+  const sendOtp = async () => {
     if (method === "phone" && !/^\d{10}$/.test(phone)) return toast.error("Please enter a 10-digit mobile number");
     if (method === "email" && !/^\S+@\S+\.\S+$/.test(email.trim())) return toast.error("Please enter a valid email address");
+    if (method === "email") {
+      setBusy(true);
+      const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: mode === "register", emailRedirectTo: window.location.origin } });
+      setBusy(false);
+      if (error) return toast.error(mode === "signin" && /signups|not found|not allowed/i.test(error.message) ? "No account with that email yet. Please register." : "Could not send the code. Please try again in a minute.");
+      toast.success(`We emailed a sign-in code to ${email.trim()}. Check your inbox (and spam).`);
+      return setStep("otp");
+    }
     toast.success(`Demo OTP sent to ${target}: ${DEMO_OTP}. No real ${method === "phone" ? "SMS" : "email"} is sent.`);
     setStep("otp");
   };
-  const verify = () => {
+  const verify = async () => {
+    if (method === "email") {
+      setBusy(true);
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: otp, type: "email" });
+      setBusy(false);
+      if (error) toast.error("That code is not correct or has expired.");
+      return;
+    }
     if (otp !== DEMO_OTP) return toast.error("That code is not correct. Try 123456.");
     const found = login(method === "phone" ? phone : email);
     if (found) { if (mode === "register") toast.info("You already have an account, so we signed you in."); return; }
@@ -65,6 +83,11 @@ function Login() {
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
     const n = age ? Number(age) : undefined;
     if (n !== undefined && (n < 18 || n > 120)) return toast.error("Please enter a valid age.");
+    if (pendingCloud) {
+      setBusy(true);
+      void completeCloudRegistration({ name: name.trim(), username, role, age: n, city }).then((err) => { setBusy(false); if (err) toast.error(err); else toast.success("Account created. Welcome to WellNest!"); });
+      return;
+    }
     try {
       register(method === "phone" ? phone : "", name.trim(), role, { username, email: method === "email" ? email : undefined, age: n, city });
       toast.success("Account created. Welcome to WellNest!");
@@ -109,7 +132,7 @@ function Login() {
                   <input id="email" type="email" className="field text-xl" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </>
               )}
-              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready} onClick={sendOtp}>Send OTP</Button>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready || busy} onClick={sendOtp}>Send OTP</Button>
               {mode === "signin" && (
                 <>
                   <p className="mt-5 text-sm font-bold text-muted-foreground">Try a demo account:</p>
@@ -123,9 +146,9 @@ function Login() {
           {step === "otp" && (
             <>
               <label htmlFor="otp" className="mb-2 block text-lg font-bold">Enter the 6-digit code sent to {target}</label>
-              <input id="otp" inputMode="numeric" maxLength={6} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
-              <p className="mt-2 text-muted-foreground">Demo code: <strong>{DEMO_OTP}</strong></p>
-              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length !== 6}>Verify & continue</Button>
+              <input id="otp" inputMode="numeric" maxLength={8} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
+              <p className="mt-2 text-muted-foreground">{method === "email" ? "Enter the code from your email. If it shows a sign-in link instead, just tap that link." : <>Demo code: <strong>{DEMO_OTP}</strong></>}</p>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length < 6 || busy}>Verify & continue</Button>
               <Button variant="care" size="care" className="mt-3 w-full font-semibold text-primary underline" onClick={() => { setStep("id"); setOtp(""); }}>Change {method === "phone" ? "number" : "email"}</Button>
             </>
           )}
