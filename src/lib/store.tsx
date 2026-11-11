@@ -3,6 +3,7 @@ import {
   seedBookings, seedCoaches, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
   type Booking, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails,
 } from "./seed";
+import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
 
 export interface DB {
@@ -35,6 +36,9 @@ interface Ctx {
   toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies", id: string) => void;
   toggleDishTag: (dishId: string, tag: DietTag) => void;
   resetDemo: () => void;
+  /** Signed in with a real emailed code but has not finished registering yet. */
+  pendingCloud: { id: string; email: string } | null;
+  completeCloudRegistration: (p: { name: string; username: string; role: Role; age?: number; city?: string }) => Promise<string | null>;
 }
 const C = createContext<Ctx | null>(null);
 
@@ -53,6 +57,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+  const [pendingCloud, setPendingCloud] = useState<{ id: string; email: string } | null>(null);
+  const adoptCloudUser = useCallback(async (id: string, email: string) => {
+    const [{ data: prof }, { data: roles }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", id),
+    ]);
+    const role = roles?.find((r) => r.role === "admin")?.role ?? roles?.[0]?.role;
+    if (!role || !prof?.username) { setPendingCloud({ id, email }); return; }
+    setPendingCloud(null);
+    setDb((d) => {
+      const prev = d.users.find((u) => u.id === id);
+      const u: User = { ...(prev ?? { linkedSeniorIds: [] }), id, email, role, name: prof.name, username: prof.username ?? undefined, phone: prof.phone ?? "", age: prof.age ?? undefined, city: prof.city ?? undefined } as User;
+      return { ...d, users: prev ? d.users.map((x) => (x.id === id ? u : x)) : [...d.users, u], currentUserId: id, activeSeniorId: u.linkedSeniorIds[0] ?? null };
+    });
+  }, []);
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") { setPendingCloud(null); return; }
+      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        const u = session.user; setTimeout(() => { void adoptCloudUser(u.id, u.email ?? ""); }, 0);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [adoptCloudUser]);
   useEffect(() => { if (ready) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage unavailable */ } } }, [db, ready]);
 
   const me = db.users.find((u) => u.id === db.currentUserId) ?? null;
@@ -71,7 +99,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const value: Ctx = useMemo(() => ({
-    ready, db, me, senior, medicines: seedMedicines,
+    ready, db, me, senior, medicines: seedMedicines, pendingCloud,
+    completeCloudRegistration: async (p) => {
+      if (!pendingCloud) return "Please verify your email first.";
+      if (p.role !== "senior" && p.role !== "family") return "Only Senior or Family accounts can be registered.";
+      const username = p.username.trim().toLowerCase();
+      const { error } = await supabase.from("profiles").update({ name: p.name.trim(), username, age: p.age ?? null, city: p.city?.trim() || null }).eq("id", pendingCloud.id);
+      if (error) return error.code === "23505" ? "That username is taken. Please choose another." : "Could not save your details.";
+      const { error: rErr } = await supabase.rpc("choose_role", { _role: p.role });
+      if (rErr && !/already set/i.test(rErr.message)) return "Could not save your role.";
+      await adoptCloudUser(pendingCloud.id, pendingCloud.email);
+      return null;
+    },
     login: (id) => {
       const key = id.trim().toLowerCase();
       const u = db.users.find((x) => (x.phone && x.phone === key) || (x.email && x.email.toLowerCase() === key)) ?? null;
@@ -105,9 +144,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (email && others.some((u) => u.email?.toLowerCase() === email)) return "That email is used by another account.";
       if (phone && others.some((u) => u.phone === phone)) return "That mobile number is used by another account.";
       patchMe((u) => ({ ...u, name: p.name.trim(), username, email, phone, age: p.age, city: p.city?.trim() || undefined }));
+      void supabase.auth.getUser().then(({ data }) => { if (data.user?.id === me.id) void supabase.from("profiles").update({ name: p.name.trim(), username, phone: phone || null, age: p.age ?? null, city: p.city?.trim() || null }).eq("id", me.id); });
       return null;
     },
-    logout: () => update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })),
+    logout: () => { void supabase.auth.signOut(); setPendingCloud(null); update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })); },
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
     saveHealth: (h, address) => {
       if (!senior?.consent?.given || !canManageSenior(me, senior)) return;
@@ -159,7 +199,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toggleDishTag: (dishId, tag) => { if (me?.role === "admin") update((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === dishId ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x)) })); },
     resetDemo: () => { if (me?.role === "admin") setDb(fresh()); },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [db, ready, me, senior]);
+  }), [db, ready, me, senior, pendingCloud, adoptCloudUser]);
 
   return <C.Provider value={value}>{children}</C.Provider>;
 }
