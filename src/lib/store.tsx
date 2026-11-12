@@ -23,6 +23,10 @@ interface Ctx {
   register: (phone: string, name: string, role: Role, extra?: Partial<ProfileDetails>) => User;
   updateProfile: (p: ProfileDetails) => string | null;
   logout: () => void;
+  /** Permanently removes the signed-in account after the approval code was checked. */
+  deleteAccount: () => string | null;
+  /** Records consent and health from the registration flow for a new senior. */
+  completeOnboarding: (h: HealthProfile, address: string) => void;
   giveConsent: () => void;
   saveHealth: (h: HealthProfile, address?: string) => void;
   deleteHealthData: () => void;
@@ -148,6 +152,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     },
     logout: () => { void supabase.auth.signOut(); setPendingCloud(null); update((d) => ({ ...d, currentUserId: null, activeSeniorId: null })); },
+    deleteAccount: () => {
+      if (!me) return "Please sign in again.";
+      if (me.role === "admin" && db.users.filter((u) => u.role === "admin").length < 2) return "You are the only administrator, so this account cannot be deleted.";
+      const id = me.id;
+      update((d) => ({ ...d, currentUserId: null, activeSeniorId: null,
+        users: d.users.filter((u) => u.id !== id).map((u) => ({ ...u, linkedSeniorIds: u.linkedSeniorIds.filter((x) => x !== id) })),
+        bookings: d.bookings.filter((b) => b.seniorId !== id),
+        notices: d.notices.filter((n) => n.userId !== id) }));
+      void supabase.auth.signOut(); setPendingCloud(null);
+      return null;
+    },
+    completeOnboarding: (h, address) => patchMe((u) => u.role === "senior" ? { ...u, consent: { given: true, at: new Date().toISOString() }, health: h, address: address.trim() || u.address } : u),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
     saveHealth: (h, address) => {
       if (!senior?.consent?.given || !canManageSenior(me, senior)) return;

@@ -9,7 +9,12 @@ export interface HealthProfile {
   diet: DietPref;
   mobility: Mobility;
   allergies: string;
+  /** Optional past hospital/doctor records shared by the senior (JPG/PNG/PDF). */
+  records?: MedicalRecord[];
+  /** Free-text notes from past medical history. */
+  history?: string;
 }
+export interface MedicalRecord { id: string; name: string; type: string; size: number; data: string; at: string; }
 export interface User {
   id: string;
   phone: string;

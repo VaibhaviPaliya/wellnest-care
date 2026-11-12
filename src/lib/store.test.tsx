@@ -113,4 +113,19 @@ describe("WellNest care rules", () => {
     expect(isSlotAvailable(0, "09:00", "c1", [], new Date("2026-11-09T10:00:00"))).toBe(false);
     expect(isSlotAvailable(1, "09:00", "c1", [], new Date("2026-11-09T10:00:00"))).toBe(true);
   });
+
+  it("deleting an account removes the user, their bookings and family links", async () => {
+    const result = await store();
+    act(() => { expect(result.current.deleteAccount()).toBeNull(); });
+    expect(result.current.me).toBeNull();
+    expect(result.current.db.users.some((u) => u.id === "u-senior-1")).toBe(false);
+    expect(result.current.db.bookings.some((b) => b.seniorId === "u-senior-1")).toBe(false);
+    expect(result.current.db.users.find((u) => u.id === "u-family-1")?.linkedSeniorIds).toEqual([]);
+  });
+
+  it("the only admin cannot delete their account", async () => {
+    const result = await store("9999999999");
+    act(() => { expect(result.current.deleteAccount()).toMatch(/only administrator/); });
+    expect(result.current.me?.role).toBe("admin");
+  });
 });
