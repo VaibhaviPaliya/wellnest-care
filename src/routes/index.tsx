@@ -6,7 +6,9 @@ import { HeartHandshake, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
-import { DEMO_OTP, type Role } from "@/lib/seed";
+import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
+import { HealthForm } from "@/components/HealthForm";
+import { TermsConsent } from "@/components/TermsConsent";
 import hero from "@/assets/hero.jpg";
 
 export const Route = createFileRoute("/")({
@@ -30,12 +32,13 @@ const DEMOS = [
 ];
 
 function Login() {
-  const { ready, me, login, register, pendingCloud, completeCloudRegistration } = useStore();
+  const { ready, me, login, register, pendingCloud, completeCloudRegistration, completeOnboarding } = useStore();
+  const [pendingHealth, setPendingHealth] = useState<{ h: HealthProfile; addr: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const [mode, setMode] = useState<"signin" | "register">("signin");
   const [method, setMethod] = useState<"phone" | "email">("phone");
-  const [step, setStep] = useState<"id" | "otp" | "new">("id");
+  const [step, setStep] = useState<"id" | "otp" | "new" | "terms" | "health">("id");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -46,8 +49,11 @@ function Login() {
   const [role, setRole] = useState<Role>("senior");
 
   useEffect(() => {
-    if (ready && me) nav({ to: me.role === "admin" ? "/admin" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
-  }, [ready, me, nav]);
+    if (me && pendingHealth) { completeOnboarding(pendingHealth.h, pendingHealth.addr); setPendingHealth(null); }
+  }, [me, pendingHealth, completeOnboarding]);
+  useEffect(() => {
+    if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
+  }, [ready, me, nav, pendingHealth]);
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
@@ -79,19 +85,26 @@ function Login() {
     if (found) { if (mode === "register") toast.info("You already have an account, so we signed you in."); return; }
     setStep("new");
   };
-  const finish = () => {
+  const checkDetails = () => {
+    if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
+    const n = age ? Number(age) : undefined;
+    if (n !== undefined && (n < 18 || n > 120)) return toast.error("Please enter a valid age.");
+    setStep("terms");
+  };
+  const finish = (health?: { h: HealthProfile; addr: string }) => {
+    if (health) setPendingHealth(health);
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
     const n = age ? Number(age) : undefined;
     if (n !== undefined && (n < 18 || n > 120)) return toast.error("Please enter a valid age.");
     if (pendingCloud) {
       setBusy(true);
-      void completeCloudRegistration({ name: name.trim(), username, role, age: n, city }).then((err) => { setBusy(false); if (err) toast.error(err); else toast.success("Account created. Welcome to WellNest!"); });
+      void completeCloudRegistration({ name: name.trim(), username, role, age: n, city }).then((err) => { setBusy(false); if (err) toast.error(err); else toast.success("Account created. Welcome to WellNest!"); if (err) setPendingHealth(null); });
       return;
     }
     try {
       register(method === "phone" ? phone : "", name.trim(), role, { username, email: method === "email" ? email : undefined, age: n, city });
       toast.success("Account created. Welcome to WellNest!");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not register."); }
+    } catch (e) { setPendingHealth(null); toast.error(e instanceof Error ? e.message : "Could not register."); }
   };
 
   return (
@@ -172,7 +185,19 @@ function Login() {
                   </Button>
                 ))}
               </div>
-              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2 || username.trim().length < 3} onClick={finish}>Create account</Button>
+              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2 || username.trim().length < 3} onClick={checkDetails}>Continue</Button>
+            </>
+          )}
+          {step === "terms" && (
+            <TermsConsent role={role} busy={busy} onBack={() => setStep("new")} onAccept={() => (role === "senior" ? setStep("health") : finish())} />
+          )}
+          {step === "health" && (
+            <>
+              <p className="font-bold text-accent">Last step</p>
+              <h2 className="text-2xl font-bold">Your health profile</h2>
+              <p className="text-muted-foreground">We use this only to suggest meals and sessions that suit you.</p>
+              <HealthForm submitLabel={busy ? "Creating account…" : "Create account"} onSubmit={(h, addr) => finish({ h, addr })} />
+              <Button variant="care" size="care" className="mt-3 w-full font-semibold text-primary underline" onClick={() => setStep("terms")}>Back</Button>
             </>
           )}
         </div>

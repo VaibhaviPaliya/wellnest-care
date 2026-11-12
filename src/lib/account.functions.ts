@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const deleteMyCloudAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: admin } = await context.supabase.rpc("has_role" as never, { _user_id: context.userId, _role: "admin" } as never);
+    const { data: admin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (admin) throw new Error("Administrator accounts must be removed by another administrator.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.auth.admin.deleteUser(context.userId);
