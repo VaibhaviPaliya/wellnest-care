@@ -6,6 +6,9 @@ import { ShieldCheck, Trash2 } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { HealthForm } from "@/components/HealthForm";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
+import { deleteMyCloudAccount } from "@/lib/account.functions";
+import { DEMO_OTP } from "@/lib/seed";
 import type { User } from "@/lib/seed";
 
 export const Route = createFileRoute("/profile")({
@@ -34,6 +37,7 @@ function Profile() {
     <>
       <PageTitle title="My Profile" sub={sub} back={me.role !== "admin"} />
       <div className="surface max-w-2xl p-6"><DetailsForm me={me} /></div>
+      <DeleteAccount me={me} />
     </>
   );
   return (
@@ -64,7 +68,63 @@ function Profile() {
           </div>
         </div>
       </div>
+      <DeleteAccount me={me} />
     </>
+  );
+}
+
+function DeleteAccount({ me }: { me: User }) {
+  const { deleteAccount } = useStore();
+  const nav = useNavigate();
+  const [step, setStep] = useState<"idle" | "code">("idle");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [cloud, setCloud] = useState(false);
+  const start = async () => {
+    setBusy(true);
+    const { data } = await supabase.auth.getUser();
+    const isCloud = data.user?.id === me.id && !!me.email;
+    setCloud(isCloud);
+    if (isCloud) {
+      const { error } = await supabase.auth.signInWithOtp({ email: me.email!, options: { shouldCreateUser: false } });
+      setBusy(false);
+      if (error) return toast.error("Could not send the approval code. Please try again in a minute.");
+      toast.success(`Approval code emailed to ${me.email}.`);
+    } else { setBusy(false); toast.success(`Demo approval code sent to +91 ${me.phone}: ${DEMO_OTP}`); }
+    setStep("code");
+  };
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      if (cloud) {
+        const { error } = await supabase.auth.verifyOtp({ email: me.email!, token: code, type: "email" });
+        if (error) throw new Error("That approval code is not correct or has expired.");
+        await deleteMyCloudAccount();
+      } else if (code !== DEMO_OTP) throw new Error("That approval code is not correct.");
+      const err = deleteAccount();
+      if (err) throw new Error(err);
+      toast.success("Your account has been deleted.");
+      nav({ to: "/" });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not delete the account."); }
+    setBusy(false);
+  };
+  return (
+    <div className="surface mt-6 max-w-2xl border-destructive p-6">
+      <h2 className="text-xl font-bold">Delete my account</h2>
+      <p className="mt-1">This permanently removes your account{me.role === "senior" ? ", health data, records, bookings and family links" : " and your alerts"}. It cannot be undone.</p>
+      {step === "idle" ? (
+        <Button variant="care" size="care" className="btn btn-danger mt-3 w-full sm:w-auto" disabled={busy} onClick={start}><Trash2 className="h-5 w-5" />Delete my account</Button>
+      ) : (
+        <div className="mt-3">
+          <label htmlFor="del-code" className="mb-2 block font-bold">Enter the approval code sent to {cloud ? me.email : `+91 ${me.phone}`}</label>
+          <input id="del-code" inputMode="numeric" maxLength={8} className="field text-center text-2xl tracking-[0.4em]" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+          <div className="mt-3 flex gap-2">
+            <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={() => { setStep("idle"); setCode(""); }}>Keep account</Button>
+            <Button variant="care" size="care" className="btn btn-danger flex-1" disabled={busy || code.length < 6} onClick={confirm}>Delete permanently</Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
