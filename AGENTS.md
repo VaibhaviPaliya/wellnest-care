@@ -12,3 +12,4 @@
 - Enforce role, consent, ownership, scheduling and status-transition rules in the mock store as well as screen guards so every flow uses the same safeguards; this is a test-data prototype, not production authentication.
 - Keep booking lifecycle and availability rules in a browser-safe shared module so user and admin views cannot disagree.
 - Use the shared Button care variants for existing large-text controls, and Radix dialogs for focus management and scrollable mobile overlays.
+- Account deletion requires a fresh approval code (emailed for Cloud users, demo code otherwise); Cloud sign-ins are removed via an authenticated server function, and the last admin cannot be deleted. Why: deletion is irreversible and must prove account ownership.
