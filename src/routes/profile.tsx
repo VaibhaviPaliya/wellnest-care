@@ -6,6 +6,7 @@ import { ShieldCheck, Trash2 } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { HealthForm } from "@/components/HealthForm";
 import { useStore } from "@/lib/store";
+import { SyncSettings } from '@/components/SyncSettings';
 import { supabase } from "@/integrations/supabase/client";
 import { deleteMyCloudAccount } from "@/lib/account.functions";
 import { DEMO_OTP } from "@/lib/seed";
@@ -37,6 +38,7 @@ function Profile() {
     <>
       <PageTitle title="My Profile" sub={sub} back={me.role !== "admin"} />
       <div className="surface max-w-2xl p-6"><DetailsForm me={me} /></div>
+      {me.role === "family" && <div className="mt-6 max-w-2xl"><SyncSettings /></div>}
       <DeleteAccount me={me} />
     </>
   );
@@ -44,6 +46,7 @@ function Profile() {
     <>
       <PageTitle title="My Profile" sub={sub} />
       <div className="surface mb-6 p-6"><DetailsForm me={me} /></div>
+      <div className="mb-6"><SyncSettings /></div>
       <div className="grid gap-6 md:grid-cols-[1fr_320px]">
         <div className="surface p-6">
           <h2 className="text-2xl font-bold">Health profile</h2>

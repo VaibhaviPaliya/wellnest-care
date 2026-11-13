@@ -5,15 +5,17 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { toast } from "sonner";
 import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { LangToggle, useT } from "@/lib/i18n";
 import type { Role } from "@/lib/seed";
 
 export function Logo() {
+  const { t } = useT();
   return (
     <Link to="/" className="flex items-center gap-2">
       <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary font-display text-xl font-bold text-primary-foreground">W</span>
       <span className="leading-tight">
         <span className="block font-display text-xl font-bold">WellNest</span>
-        <span className="block text-xs text-muted-foreground">Care that comes home</span>
+        <span className="block whitespace-nowrap text-xs text-muted-foreground">{t("Care that comes home")}</span>
       </span>
     </Link>
   );
@@ -22,6 +24,7 @@ export function Logo() {
 /** Guards a page: requires login, consent + health for seniors, and the given roles. */
 export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode }) {
   const { ready, me, db, logout } = useStore();
+  const { t } = useT();
   const nav = useNavigate();
   useEffect(() => {
     if (!ready) return;
@@ -44,28 +47,32 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
       ];
 
   return (
-    <div className="min-h-screen pb-28 md:pb-10">
+    <div className="min-h-screen pb-28 lg:pb-10">
       <header className="sticky top-0 z-30 border-b-2 bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Logo />
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-0.5 lg:flex">
             {links.map((l) => (
-              <Link key={l.to} to={l.to} className="relative flex items-center gap-2 rounded-xl px-4 py-2 font-semibold hover:bg-muted" activeProps={{ className: "bg-secondary" }}>
-                <l.icon className="h-5 w-5" />{l.label}
+              <Link key={l.to} to={l.to} className="relative flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 font-semibold hover:bg-muted" activeProps={{ className: "bg-secondary" }}>
+                <l.icon className="h-5 w-5" />{t(l.label)}
                 {!!l.badge && <span className="rounded-full bg-accent px-2 text-sm text-accent-foreground">{l.badge}</span>}
               </Link>
             ))}
           </nav>
-          <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label="Log out">
-            <LogOut className="h-5 w-5" /><span className="hidden sm:inline">Log out</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label={t("Log out")}>
+              <LogOut className="h-5 w-5" /><span className="hidden whitespace-nowrap lg:inline">{t("Log out")}</span>
+            </Button>
+          </div>
         </div>
       </header>
+      {me.role !== "admin" && <ReminderRunner />}
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card md:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card lg:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {links.map((l) => (
           <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-1 py-3 text-sm font-semibold text-muted-foreground" activeProps={{ className: "text-primary" }}>
-            <l.icon className="h-6 w-6" />{l.label}
+            <l.icon className="h-6 w-6" />{t(l.label)}
             {!!l.badge && <span className="absolute right-1/4 top-2 rounded-full bg-accent px-1.5 text-xs text-accent-foreground">{l.badge}</span>}
           </Link>
         ))}
@@ -74,12 +81,30 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
   );
 }
 
+/** Checks every 30 seconds for due reminders and bookings starting within 30 minutes. */
+function ReminderRunner() {
+  const { runTimers, senior, db } = useStore();
+  const { t } = useT();
+  const run = useRef(runTimers);
+  run.current = runTimers;
+  const active = !!senior?.consent?.given && db.care.reminders.length + db.bookings.length > 0;
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => { for (const title of run.current()) toast.info(title, { duration: 15000, description: t("Reminders") }); };
+    tick();
+    const id = setInterval(tick, 30000);
+    return () => clearInterval(id);
+  }, [active, senior?.id, t]);
+  return null;
+}
+
 export function PageTitle({ title, sub, back = true }: { title: string; sub?: string; back?: boolean }) {
+  const { t } = useT();
   return (
     <div className="mb-6">
-      {back && <Link to="/home" className="mb-2 inline-block font-semibold text-primary underline-offset-4 hover:underline">← Back to home</Link>}
-      <h1 className="text-3xl font-bold md:text-4xl">{title}</h1>
-      {sub && <p className="mt-1 text-lg text-muted-foreground">{sub}</p>}
+      {back && <Link to="/home" className="mb-2 inline-block font-semibold text-primary underline-offset-4 hover:underline">{t("← Back to home")}</Link>}
+      <h1 className="text-3xl font-bold md:text-4xl">{t(title)}</h1>
+      {sub && <p className="mt-1 text-lg text-muted-foreground">{t(sub)}</p>}
     </div>
   );
 }

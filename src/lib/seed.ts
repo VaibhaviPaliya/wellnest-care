@@ -35,14 +35,19 @@ export interface Coach {
   id: string; name: string; types: ("yoga" | "mobility" | "meditation")[];
   level: "gentle" | "moderate"; mode: ("home" | "online")[]; price: number;
   slots: string[]; verified: boolean; bio: string; rating: number; years: number;
+  /** Optional uploaded photo (small data URL). Without one an illustrated avatar is shown. */
+  photo?: string;
 }
-export interface Kitchen { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; }
+export interface Kitchen { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; photo?: string; }
 export interface Dish {
   id: string; kitchenId: string; name: string; price: number;
   diet: "veg" | "non_veg" | "egg"; jain: boolean; tags: DietTag[]; desc: string;
   nutrition?: import('./care').Nutrition;
 }
-export interface Pharmacy { id: string; name: string; area: string; verified: boolean; eta: string; }
+export interface Pharmacy { id: string; name: string; area: string; verified: boolean; eta: string; photo?: string; }
+/** Delivery staff for meal and medicine orders. Only verified staff are ever assigned. */
+export interface DeliveryPartner { id: string; name: string; vehicle: string; area: string; verified: boolean; photo?: string; }
+export type PartnerKind = "coach" | "kitchen" | "pharmacy" | "delivery";
 export interface Medicine { id: string; name: string; dose: string; price: number; }
 
 export type Status = "confirmed" | "in_progress" | "out_for_delivery" | "completed" | "cancelled" | "pending_review";
@@ -54,8 +59,10 @@ export interface Booking {
   prescription?: string; prescriptionData?: string; videoUrl?: string; review?: { rating: number; text: string };
   upiRef: string;
   subscriptionId?: string;
+  /** Verified delivery partner assigned to a meal or medicine order. */
+  deliveryId?: string; deliveryName?: string;
 }
-export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; }
+export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; who?: { kind: PartnerKind; id: string; name: string }; }
 
 export const CONDITION_LABEL: Record<Condition, string> = {
   diabetes: "Diabetes", high_bp: "High BP", heart: "Heart Disease", chewing: "Chewing Difficulty",
@@ -148,6 +155,13 @@ export const seedPharmacies: Pharmacy[] = [
   { id: "p4", name: "QuickMeds Online", area: "Unknown", verified: false, eta: "2 hrs" },
 ];
 
+export const seedDelivery: DeliveryPartner[] = [
+  { id: "dp1", name: "Ravi Kumar", vehicle: "Motorbike", area: "Jayanagar", verified: true },
+  { id: "dp2", name: "Salma Begum", vehicle: "Scooter", area: "BTM Layout", verified: true },
+  { id: "dp3", name: "Prakash Gowda", vehicle: "Motorbike", area: "Indiranagar", verified: true },
+  { id: "dp4", name: "Deepak Shetty", vehicle: "Bicycle", area: "Unknown", verified: false },
+];
+
 export const seedMedicines: Medicine[] = [
   { id: "m1", name: "Metformin", dose: "500 mg · 30 tabs", price: 45 },
   { id: "m2", name: "Amlodipine", dose: "5 mg · 30 tabs", price: 60 },
@@ -165,15 +179,23 @@ export const seedBookings: Booking[] = [
     status: "confirmed", detail: "Gentle yoga at home", upiRef: "UPI4829301" },
   { id: "b-seed-2", type: "meal", seniorId: "u-senior-1", bookedBy: "u-family-1", title: "Lunch from HeartSmart",
     partnerId: "k3", partnerName: "HeartSmart Meals", amount: 320, when: d(1, 13), createdAt: d(0, 8),
-    status: "confirmed", detail: "2 items", items: [{ name: "Millet Vegetable Pulao", qty: 1, price: 170 }, { name: "Lentil Soup (Masoor)", qty: 1, price: 120 }], upiRef: "UPI4829302" },
+    status: "confirmed", detail: "2 items", deliveryId: "dp3", deliveryName: "Prakash Gowda", items: [{ name: "Millet Vegetable Pulao", qty: 1, price: 170 }, { name: "Lentil Soup (Masoor)", qty: 1, price: 120 }], upiRef: "UPI4829302" },
   { id: "b-seed-3", type: "medicine", seniorId: "u-senior-1", bookedBy: "u-senior-1", title: "Monthly BP & sugar medicines",
     partnerId: "p1", partnerName: "Apollo Care Pharmacy", amount: 105, when: d(-3, 12), createdAt: d(-3, 10),
-    status: "completed", detail: "Metformin, Amlodipine", items: [{ name: "Metformin", qty: 1, price: 45 }, { name: "Amlodipine", qty: 1, price: 60 }], upiRef: "UPI4829303" },
+    status: "completed", detail: "Metformin, Amlodipine", deliveryId: "dp1", deliveryName: "Ravi Kumar", items: [{ name: "Metformin", qty: 1, price: 45 }, { name: "Amlodipine", qty: 1, price: 60 }], upiRef: "UPI4829303" },
+  { id: "b-seed-5", type: "medicine", seniorId: "u-senior-2", bookedBy: "u-senior-2", title: "Heart medicines refill",
+    partnerId: "p1", partnerName: "Apollo Care Pharmacy", amount: 135, when: d(-6, 11), createdAt: d(-6, 9),
+    status: "completed", detail: "Atorvastatin, Aspirin (low dose)", deliveryId: "dp1", deliveryName: "Ravi Kumar", items: [{ name: "Atorvastatin", qty: 1, price: 110 }, { name: "Aspirin (low dose)", qty: 1, price: 25 }], upiRef: "UPI4829305",
+    review: { rating: 5, text: "Delivered on time and the pharmacist called to confirm the dosage." } },
+  { id: "b-seed-4", type: "meal", seniorId: "u-senior-2", bookedBy: "u-senior-2", title: "Dinner from Gentle",
+    partnerId: "k2", partnerName: "Gentle Bites", amount: 290, when: d(-2, 19), createdAt: d(-2, 15),
+    status: "completed", detail: "1 item", deliveryId: "dp3", deliveryName: "Prakash Gowda", items: [{ name: "Steamed Fish in Coconut Broth", qty: 1, price: 260 }], upiRef: "UPI4829304",
+    review: { rating: 4, text: "Soft and easy to eat. Could be a little warmer on arrival." } },
 ];
 
 export const seedNotices: Notice[] = [
-  { id: "n1", userId: "u-family-1", title: "Yoga session booked for Amma", body: "Kamala's Chair Yoga with Meera Nair is today at 5:00 PM.", at: d(-1, 9), read: false },
-  { id: "n2", userId: "u-senior-1", title: "Lunch ordered by Arjun", body: "Arjun ordered lunch from HeartSmart for tomorrow 1:00 PM.", at: d(0, 8), read: false },
+  { id: "n1", userId: "u-family-1", title: "Yoga session booked for Amma", body: "Kamala's Chair Yoga with Meera Nair is today at 5:00 PM.", at: d(-1, 9), read: false, who: { kind: "coach", id: "c1", name: "Meera Nair" } },
+  { id: "n2", userId: "u-senior-1", title: "Lunch ordered by Arjun", body: "Arjun ordered lunch from HeartSmart for tomorrow 1:00 PM. Delivery by Prakash Gowda.", at: d(0, 8), read: false, who: { kind: "delivery", id: "dp3", name: "Prakash Gowda" } },
 ];
 
 export const DEMO_OTP = "123456";

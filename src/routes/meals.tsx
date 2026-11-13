@@ -5,10 +5,12 @@ import { BadgeCheck, Minus, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { PartnerAvatar } from '@/components/PartnerAvatar';
 import { isSuitable, whyItSuits } from "@/lib/rules";
 import { CONDITION_LABEL, DIET_LABEL, TAG_LABEL } from "@/lib/seed";
 import { MealExtras } from '@/components/CareFeatures';
 import { calorieTarget } from '@/lib/care';
+import { RatingBadge } from '@/components/RatingBadge';
 
 export const Route = createFileRoute("/meals")({
   head: () => ({
@@ -67,7 +69,7 @@ function Meals() {
         <ul className="grid gap-4 sm:grid-cols-2">
           {dishes.map((d) => (
             <li key={d.id} className="surface flex flex-col p-5">
-              <p className="flex items-center gap-1 text-sm font-semibold text-muted-foreground"><BadgeCheck className="h-4 w-4 text-success" />{kName(d.kitchenId)}</p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-muted-foreground"><span className="flex items-center gap-1.5"><PartnerAvatar kind="kitchen" id={d.kitchenId} name={kName(d.kitchenId)} size={28} /><BadgeCheck className="h-4 w-4 text-success" aria-label="Verified" />{kName(d.kitchenId)}</span><RatingBadge type="meal" partnerId={d.kitchenId} /></p>
               <h2 className="mt-1 text-xl font-bold">{d.name}</h2>
               <p className="text-muted-foreground">{d.desc}</p>
               <p className="mt-2 text-sm font-bold">{d.nutrition ? `${d.nutrition.calories} kcal · ${d.nutrition.carbs} g carbs · ${d.nutrition.protein} g protein / serving` : 'Nutrition per serving awaiting kitchen data'}</p>

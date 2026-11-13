@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { BellRing } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { PartnerAvatar } from '@/components/PartnerAvatar';
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/alerts")({
   head: () => ({
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/alerts")({
 
 function Alerts() {
   const { db, me, markRead } = useStore();
+  const { t } = useT();
   const list = db.notices.filter((n) => n.userId === me?.id);
   useEffect(() => { const t = setTimeout(markRead, 1500); return () => clearTimeout(t); }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -28,7 +31,7 @@ function Alerts() {
       <ul className="space-y-3">
         {list.map((n) => (
           <li key={n.id} className={`surface flex gap-4 p-4 ${n.read ? "" : "border-accent"}`}>
-            <BellRing className={`h-7 w-7 shrink-0 ${n.read ? "text-muted-foreground" : "text-accent"}`} />
+            {n.who ? <PartnerAvatar kind={n.who.kind} id={n.who.id} name={n.who.name} size={52} /> : <BellRing className={`h-7 w-7 shrink-0 ${n.read ? "text-muted-foreground" : "text-accent"}`} />}
             <div>
               <p className="text-lg font-bold">{n.title}</p>
               <p>{n.body}</p>
@@ -36,7 +39,7 @@ function Alerts() {
             </div>
           </li>
         ))}
-        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">No alerts yet.</p>}
+        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">{t("No alerts yet.")}</p>}
       </ul>
     </>
   );
