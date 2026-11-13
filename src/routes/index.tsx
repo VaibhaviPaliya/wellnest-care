@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { HeartHandshake, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { SyncSettings } from '@/components/SyncSettings';
 import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
 import { HealthForm } from "@/components/HealthForm";
@@ -154,6 +155,7 @@ function Login() {
                   </div>
                 </>
               )}
+              <SyncSettings compact />
             </>
           )}
           {step === "otp" && (

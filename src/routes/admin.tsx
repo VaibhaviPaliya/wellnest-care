@@ -8,6 +8,7 @@ import { TAG_LABEL, type DietTag } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
 import { CareAdmin } from '@/components/CareFeatures';
 import { RatingBadge } from '@/components/RatingBadge';
+import { PartnerAvatar, resizePhoto } from '@/components/PartnerAvatar';
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -26,13 +27,13 @@ export const Route = createFileRoute("/admin")({
 type Tab = "partners" | "dishes" | "orders" | 'care';
 
 function Admin() {
-  const { db, toggleVerify, toggleDishTag, resetDemo, setStatus } = useStore();
+  const { db, toggleVerify, toggleDishTag, resetDemo, setStatus, setPartnerPhoto } = useStore();
   const [tab, setTab] = useState<Tab>("partners");
   const [reset, setReset] = useState(false);
   const [query, setQuery] = useState("");
   const stats = [
     ["Seniors", db.users.filter((u) => u.role === "senior").length],
-    ["Verified partners", [...db.coaches, ...db.kitchens, ...db.pharmacies].filter((p) => p.verified).length],
+    ["Verified partners", [...db.coaches, ...db.kitchens, ...db.pharmacies, ...db.delivery].filter((p) => p.verified).length],
     ["Dishes", db.dishes.length],
     ["Bookings & orders", db.bookings.length],
   ] as const;
@@ -54,16 +55,25 @@ function Admin() {
 
       {tab === "partners" && (
         <div className="space-y-6">
-          {([["coaches", "Fitness coaches", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: c.types.join(", "), verified: c.verified, type: "fitness" as const, fallback: c.rating }))],
-             ["kitchens", "Partner kitchens", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: k.area, verified: k.verified, type: "meal" as const, fallback: 0 }))],
-             ["pharmacies", "Pharmacies", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified, type: "medicine" as const, fallback: 0 }))]] as const).map(([kind, title, rows]) => (
+          {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: c.types.join(", "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
+             ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: k.area, verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
+             ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
+             ["delivery", "delivery", "Delivery partners", "Only verified delivery partners are assigned to meal and medicine orders. Unverifying someone moves their open orders to a verified partner.", db.delivery.map((x) => ({ id: x.id, name: x.name, sub: `${x.vehicle} · ${x.area} · ${((n) => `${n} open order${n === 1 ? "" : "s"}`)(db.bookings.filter((b) => b.deliveryId === x.id && !["completed", "cancelled"].includes(b.status)).length)}`, verified: x.verified, type: null, fallback: 0, photo: x.photo }))]] as const).map(([kind, pkind, title, note, rows]) => (
             <section key={kind} className="surface p-5">
               <h2 className="text-2xl font-bold">{title}</h2>
-              <p className="text-muted-foreground">Unverified partners are hidden from search.</p>
+              <p className="text-muted-foreground">{note}</p>
               <ul className="mt-3 divide-y-2">
                 {rows.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-3 py-3">
-                    <div><p className="font-bold">{r.name}</p><p className="text-sm capitalize text-muted-foreground">{r.sub}</p><RatingBadge type={r.type} partnerId={r.id} fallback={r.fallback} /></div>
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+                      <PartnerAvatar kind={pkind} id={r.id} name={r.name} size={52} />
+                      <div className="min-w-0"><p className="font-bold">{r.name}</p><p className="text-sm text-muted-foreground">{r.sub}</p>{r.type && <RatingBadge type={r.type} partnerId={r.id} fallback={r.fallback} />}
+                        <div className="mt-1 flex flex-wrap gap-3 text-sm">
+                          <label className="cursor-pointer font-semibold text-primary underline">{r.photo ? "Change photo" : "Upload photo"}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) resizePhoto(f).then((url) => { const err = setPartnerPhoto(pkind, r.id, url); if (err) toast.error(err); else toast.success(`Photo saved for ${r.name}.`); }).catch((err: Error) => toast.error(err.message)); }} /></label>
+                          {r.photo && <button type="button" className="font-semibold text-destructive underline" onClick={() => setPartnerPhoto(pkind, r.id, undefined)}>Remove photo</button>}
+                        </div>
+                      </div>
+                    </div>
                     <label className="flex cursor-pointer items-center gap-3">
                       <span className={`font-bold ${r.verified ? "text-success" : "text-destructive"}`}>{r.verified ? "Verified" : "Unverified"}</span>
                       <Button variant="care" size="care" role="switch" aria-checked={r.verified} aria-label={`Verify ${r.name}`} onClick={() => toggleVerify(kind, r.id)}
@@ -107,7 +117,7 @@ function Admin() {
               {db.bookings.filter((b) => [b.title, b.partnerName, uName(b.seniorId)].join(" ").toLowerCase().includes(query.toLowerCase())).map((b) => (
                 <tr key={b.id} className="border-b">
                   <td className="p-3 font-bold">{b.title}{b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-2 block text-sm text-primary underline">View prescription</a>}<p className="text-sm font-normal text-muted-foreground">{b.detail}</p></td><td className="p-3">{uName(b.seniorId)}</td><td className="p-3">{uName(b.bookedBy)}</td>
-                  <td className="p-3">{b.partnerName}</td><td className="p-3">{fmtWhen(b.when)}</td><td className="p-3">₹{b.amount}</td>
+                  <td className="p-3">{b.partnerName}{b.deliveryName && <p className="text-sm text-muted-foreground">Delivery: {b.deliveryName}</p>}</td><td className="p-3">{fmtWhen(b.when)}</td><td className="p-3">₹{b.amount}</td>
                   <td className="p-3"><span className="tag">{STATUS_LABEL[b.status]}</span>{(() => { const steps = FLOW[b.type]; const idx = steps.indexOf(b.status); const next = idx >= 0 ? steps[idx + 1] : undefined; return next ? <Button variant="care" size="care" className="btn btn-outline mt-2 min-h-11 text-sm" onClick={() => setStatus(b.id, next)}>{b.status === "pending_review" ? "Approve order" : `Mark ${STATUS_LABEL[next]}`}</Button> : null; })()}{canCancel(b) && <Button variant="care" size="care" className="mt-2 block text-sm text-destructive underline" onClick={() => setStatus(b.id, "cancelled")}>Cancel order</Button>}</td>
                   <td className="p-3">{b.review ? `${"★".repeat(b.review.rating)}` : "—"}</td>
                 </tr>

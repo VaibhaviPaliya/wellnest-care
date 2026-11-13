@@ -157,4 +157,35 @@ describe("WellNest care rules", () => {
     act(() => { hook.result.current.register("9000000003", "Cousin", "family"); });
     expect(hook.result.current.addReminder({ kind: "other", label: "Call", time: "09:00", days: [1] })).not.toBeNull();
   });
+
+  it("assigns a verified delivery partner to orders and tells the family who is coming", async () => {
+    const result = await store();
+    act(() => { result.current.createBooking({ type: "meal", title: "Lunch", partnerId: "k1", partnerName: "Annapoorna", amount: 140, when: new Date(Date.now() + 86400000).toISOString(), detail: "1 item" }); });
+    const order = result.current.db.bookings[0];
+    expect(order.deliveryId).toBe("dp1");
+    const alert = result.current.db.notices.find((n) => n.userId === "u-family-1" && n.title === "Order received: Lunch");
+    expect(alert?.who).toEqual({ kind: "delivery", id: "dp1", name: "Ravi Kumar" });
+    expect(alert?.body).toContain("Delivery by Ravi Kumar (verified)");
+  });
+
+  it("lets only the admin verify delivery partners, and moves open orders off an unverified one", async () => {
+    const senior = await store();
+    act(() => senior.current.toggleVerify("delivery", "dp3"));
+    expect(senior.current.db.delivery.find((d) => d.id === "dp3")?.verified).toBe(true);
+    act(() => { senior.current.logout(); senior.current.login("9999999999"); });
+    act(() => senior.current.toggleVerify("delivery", "dp3"));
+    expect(senior.current.db.delivery.find((d) => d.id === "dp3")?.verified).toBe(false);
+    const moved = senior.current.db.bookings.find((b) => b.id === "b-seed-2");
+    expect(moved?.deliveryId).not.toBe("dp3");
+    expect(senior.current.db.delivery.find((d) => d.id === moved?.deliveryId)?.verified).toBe(true);
+  });
+
+  it("only accepts small image data URLs as partner photos, from the admin", async () => {
+    const result = await store("9999999999");
+    expect(result.current.setPartnerPhoto("coach", "c1", "javascript:alert(1)")).not.toBeNull();
+    let error: string | null = "x";
+    act(() => { error = result.current.setPartnerPhoto("coach", "c1", "data:image/jpeg;base64,AAAA"); });
+    expect(error).toBeNull();
+    expect(result.current.db.coaches.find((c) => c.id === "c1")?.photo).toBe("data:image/jpeg;base64,AAAA");
+  });
 });

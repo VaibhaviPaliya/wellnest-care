@@ -17,3 +17,6 @@
 
 - Reminders and booking heads-ups live in the shared mock store (care.reminders, care.bookingAlerts) and are fired by ReminderRunner in Shell every 30 s; firing is recomputed inside the state update so overlapping ticks never duplicate alerts. Reminders are removed with health data deletion.
 - UI text is translated with useT()/t(english) from src/lib/i18n.tsx; English strings are the keys and missing Hindi entries fall back to English, so wrap new UI strings in t() and add a HI entry.
+- Partner pictures come from PartnerAvatar: an admin-uploaded photo (resized to a 160 px JPEG data URL, max 60 KB) or an illustrated avatar; never real people's images by default.
+- Meal and medicine orders get a verified delivery partner from assignDelivery(); unverified staff are never assigned and unverifying reassigns open orders.
+- Two-phone sync (src/lib/sync.ts) is opt-in per device with a room code; it broadcasts the shared demo data (not sign-in, not uploaded files) and the newest updatedAt wins. Only shared-data changes bump updatedAt. Why: a demo needs senior and family on separate phones before bookings move to Cloud tables.

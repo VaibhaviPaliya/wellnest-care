@@ -81,7 +81,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
   );
 }
 
-/** Checks every 30 seconds for due reminders and bookings starting within the hour. */
+/** Checks every 30 seconds for due reminders and bookings starting within 30 minutes. */
 function ReminderRunner() {
   const { runTimers, senior, db } = useStore();
   const { t } = useT();

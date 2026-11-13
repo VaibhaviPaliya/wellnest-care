@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { BellRing } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { PartnerAvatar } from '@/components/PartnerAvatar';
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/alerts")({
@@ -30,7 +31,7 @@ function Alerts() {
       <ul className="space-y-3">
         {list.map((n) => (
           <li key={n.id} className={`surface flex gap-4 p-4 ${n.read ? "" : "border-accent"}`}>
-            <BellRing className={`h-7 w-7 shrink-0 ${n.read ? "text-muted-foreground" : "text-accent"}`} />
+            {n.who ? <PartnerAvatar kind={n.who.kind} id={n.who.id} name={n.who.name} size={52} /> : <BellRing className={`h-7 w-7 shrink-0 ${n.read ? "text-muted-foreground" : "text-accent"}`} />}
             <div>
               <p className="text-lg font-bold">{n.title}</p>
               <p>{n.body}</p>

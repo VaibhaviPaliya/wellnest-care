@@ -162,7 +162,7 @@ function Reminders() {
           </Button>
           <p className="mt-3 text-sm text-muted-foreground">
             {t(
-              "Reminders show while WellNest is open in this browser. You also get an alert one hour before every booking.",
+              "Reminders show while WellNest is open in this browser. You also get an alert 30 minutes before every booking.",
             )}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">

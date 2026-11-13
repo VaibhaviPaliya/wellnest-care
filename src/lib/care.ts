@@ -1,4 +1,4 @@
-import type { Booking, HealthProfile } from './seed';
+import type { Booking, DeliveryPartner, HealthProfile } from './seed';
 
 export interface Nutrition { calories: number; carbs: number; protein: number; }
 export interface Metrics { age: number; height: number; weight: number; sex: 'female' | 'male'; activity: 'sedentary' | 'light' | 'moderate'; }
@@ -56,7 +56,21 @@ export function dueReminders(reminders: Reminder[], now = new Date(), windowMin 
     return at <= mins && mins - at <= windowMin;
   });
 }
-/** Active bookings starting within the next hour that have not been alerted yet. */
-export function bookingsStartingSoon(bookings: Booking[], alerted: string[], now = new Date(), withinMin = 60): Booking[] {
+/** Minutes before a booking that the "starting soon" alert goes out (FR10). */
+export const BOOKING_REMINDER_MIN = 30;
+/** Active bookings starting within the reminder window that have not been alerted yet. */
+export function bookingsStartingSoon(bookings: Booking[], alerted: string[], now = new Date(), withinMin = BOOKING_REMINDER_MIN): Booking[] {
   return bookings.filter(b => !['cancelled', 'completed'].includes(b.status) && !alerted.includes(b.id) && new Date(b.when).getTime() > now.getTime() && new Date(b.when).getTime() - now.getTime() <= withinMin * 60000);
+}
+
+/** Picks the verified delivery partner with the fewest active orders; unverified staff are never assigned. */
+export function assignDelivery(partners: DeliveryPartner[], bookings: Booking[]): DeliveryPartner | null {
+  const load = (id: string) => bookings.filter(b => b.deliveryId === id && !['completed', 'cancelled'].includes(b.status)).length;
+  return partners.filter(p => p.verified).sort((a, b) => load(a.id) - load(b.id) || a.id.localeCompare(b.id))[0] ?? null;
+}
+/** Coaches arrive 10 minutes early to set up a home visit. */
+export const ARRIVAL_LEAD_MIN = 10;
+export function arrivalWindow(b: Pick<Booking, 'when'>): { from: Date; to: Date } {
+  const to = new Date(b.when);
+  return { from: new Date(to.getTime() - ARRIVAL_LEAD_MIN * 60000), to };
 }

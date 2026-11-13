@@ -5,6 +5,7 @@ import { BadgeCheck, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { PartnerAvatar } from '@/components/PartnerAvatar';
 import { RatingBadge } from '@/components/RatingBadge';
 import { sessionDate } from "@/lib/booking-rules";
 import { Link } from "@tanstack/react-router";
@@ -106,7 +107,7 @@ function Pharmacy() {
             {pharmacies.map((p) => (
               <li key={p.id}>
                 <Button variant="care" size="care" onClick={() => setPh(p.id)} aria-pressed={ph === p.id} className={`w-full flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left ${ph === p.id ? "border-primary bg-secondary" : ""}`}>
-                  <strong className="flex items-center gap-1">{p.name}<BadgeCheck className="h-5 w-5 text-success" /></strong>
+                  <span className="flex items-center gap-3"><PartnerAvatar kind="pharmacy" id={p.id} name={p.name} size={44} /><strong className="flex items-center gap-1">{p.name}<BadgeCheck className="h-5 w-5 text-success" aria-label="Verified" /></strong></span>
                   <span className="text-muted-foreground">{p.area} · delivers in ~{p.eta}</span>
                   <RatingBadge type="medicine" partnerId={p.id} className="mt-1 flex" />
                 </Button>

@@ -88,8 +88,8 @@ export const HI: Record<string, string> = {
   Meal: "भोजन",
   Water: "पानी",
   Other: "अन्य",
-  "Reminders show while WellNest is open in this browser. You also get an alert one hour before every booking.":
-    "रिमाइंडर तभी दिखते हैं जब WellNest इस ब्राउज़र में खुला हो। हर बुकिंग से एक घंटा पहले भी सूचना मिलती है।",
+  "Reminders show while WellNest is open in this browser. You also get an alert 30 minutes before every booking.":
+    "रिमाइंडर तभी दिखते हैं जब WellNest इस ब्राउज़र में खुला हो। हर बुकिंग से 30 मिनट पहले भी सूचना मिलती है।",
   "Reminders are not medical advice. Follow your doctor’s dosage instructions.":
     "रिमाइंडर चिकित्सीय सलाह नहीं हैं। दवा की मात्रा के लिए अपने डॉक्टर के निर्देश मानें।",
   Sun: "रवि",
@@ -99,6 +99,27 @@ export const HI: Record<string, string> = {
   Thu: "गुरु",
   Fri: "शुक्र",
   Sat: "शनि",
+  // Photos, delivery, payment, arrival
+  Paid: "भुगतान हो गया",
+  "Coach arrives {from}–{to}": "कोच {from}–{to} के बीच पहुँचेंगे",
+  "verified delivery partner": "सत्यापित डिलीवरी पार्टनर",
+  "arrives around {time}": "लगभग {time} पहुँचेंगे",
+  // Two-phone sync
+  "Use on two phones": "दो फ़ोन पर इस्तेमाल करें",
+  "Room code": "रूम कोड",
+  "Turn on sync": "सिंक चालू करें",
+  "Turn off sync": "सिंक बंद करें",
+  Off: "बंद",
+  "Connecting…": "जुड़ रहा है…",
+  "Live · {n} other device(s) connected": "चालू · {n} अन्य डिवाइस जुड़े हैं",
+  "Could not connect. Check the internet connection.": "जुड़ नहीं सका। इंटरनेट कनेक्शन जाँचें।",
+  "Sync on. Use the same room code on the other phone.":
+    "सिंक चालू है। दूसरे फ़ोन पर वही रूम कोड डालें।",
+  "Sync off. Data stays on this device.": "सिंक बंद है। डेटा इसी डिवाइस पर रहेगा।",
+  "Turn this on with the same room code on the senior’s and the family member’s phones to share bookings and alerts between them.":
+    "वरिष्ठ सदस्य और परिवारजन के फ़ोन पर एक ही रूम कोड से इसे चालू करें, ताकि बुकिंग और सूचनाएँ दोनों को दिखें।",
+  "Demo only: everyone with this room code receives this demo’s data, including health profiles. Use test data. Uploaded prescriptions and records stay on this device.":
+    "केवल डेमो के लिए: इस रूम कोड वाले हर व्यक्ति को इस डेमो का डेटा, स्वास्थ्य प्रोफ़ाइल सहित, मिलेगा। केवल टेस्ट डेटा इस्तेमाल करें। अपलोड किए गए पर्चे और रिकॉर्ड इसी डिवाइस पर रहते हैं।",
   // Ratings
   "New partner · no reviews yet": "नया पार्टनर · अभी कोई समीक्षा नहीं",
   "{count} reviews": "{count} समीक्षाएँ",

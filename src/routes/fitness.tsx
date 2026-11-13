@@ -5,6 +5,7 @@ import { BadgeCheck, Home, Monitor, Star } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { PartnerAvatar } from '@/components/PartnerAvatar';
 import type { Coach } from "@/lib/seed";
 import { isSlotAvailable, sessionDate } from "@/lib/booking-rules";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -68,7 +69,8 @@ function Fitness() {
         {list.map((c) => (
           <li key={c.id} className="surface p-5">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <PartnerAvatar kind="coach" id={c.id} name={c.name} size={64} />
+              <div className="min-w-0 flex-1">
                 <h2 className="flex items-center gap-2 text-2xl font-bold">{c.name}<BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" /></h2>
                 <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {coachRating(c.id, db.bookings, c.rating).rating} · {coachRating(c.id, db.bookings, c.rating).count || 'Sample'} reviews</p>
               </div>
