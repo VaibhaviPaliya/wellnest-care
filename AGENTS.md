@@ -14,3 +14,6 @@
 - Keep care plans, subscription credits, review requests and nutrition validation in the shared mock store and browser-safe care module; no clinical or tracking claims derive from demo state. Why: every screen must enforce the same consent and ownership gates.
 - Use the shared Button care variants for existing large-text controls, and Radix dialogs for focus management and scrollable mobile overlays.
 - Account deletion requires a fresh approval code (emailed for Cloud users, demo code otherwise); Cloud sign-ins are removed via an authenticated server function, and the last admin cannot be deleted. Why: deletion is irreversible and must prove account ownership.
+
+- Reminders and booking heads-ups live in the shared mock store (care.reminders, care.bookingAlerts) and are fired by ReminderRunner in Shell every 30 s; firing is recomputed inside the state update so overlapping ticks never duplicate alerts. Reminders are removed with health data deletion.
+- UI text is translated with useT()/t(english) from src/lib/i18n.tsx; English strings are the keys and missing Hindi entries fall back to English, so wrap new UI strings in t() and add a HI entry.

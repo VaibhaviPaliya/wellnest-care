@@ -169,6 +169,14 @@ export const seedBookings: Booking[] = [
   { id: "b-seed-3", type: "medicine", seniorId: "u-senior-1", bookedBy: "u-senior-1", title: "Monthly BP & sugar medicines",
     partnerId: "p1", partnerName: "Apollo Care Pharmacy", amount: 105, when: d(-3, 12), createdAt: d(-3, 10),
     status: "completed", detail: "Metformin, Amlodipine", items: [{ name: "Metformin", qty: 1, price: 45 }, { name: "Amlodipine", qty: 1, price: 60 }], upiRef: "UPI4829303" },
+  { id: "b-seed-5", type: "medicine", seniorId: "u-senior-2", bookedBy: "u-senior-2", title: "Heart medicines refill",
+    partnerId: "p1", partnerName: "Apollo Care Pharmacy", amount: 135, when: d(-6, 11), createdAt: d(-6, 9),
+    status: "completed", detail: "Atorvastatin, Aspirin (low dose)", items: [{ name: "Atorvastatin", qty: 1, price: 110 }, { name: "Aspirin (low dose)", qty: 1, price: 25 }], upiRef: "UPI4829305",
+    review: { rating: 5, text: "Delivered on time and the pharmacist called to confirm the dosage." } },
+  { id: "b-seed-4", type: "meal", seniorId: "u-senior-2", bookedBy: "u-senior-2", title: "Dinner from Gentle",
+    partnerId: "k2", partnerName: "Gentle Bites", amount: 290, when: d(-2, 19), createdAt: d(-2, 15),
+    status: "completed", detail: "1 item", items: [{ name: "Steamed Fish in Coconut Broth", qty: 1, price: 260 }], upiRef: "UPI4829304",
+    review: { rating: 4, text: "Soft and easy to eat. Could be a little warmer on arrival." } },
 ];
 
 export const seedNotices: Notice[] = [

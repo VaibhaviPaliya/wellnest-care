@@ -6,7 +6,10 @@ export interface ExerciseDay { day: string; title: string; minutes: number; vide
 export interface ExercisePlan { id: string; coachId: string; name: string; days: ExerciseDay[]; }
 export interface Subscription { id: string; seniorId: string; planId: string; starts: string; ends: string; remaining: number; cancelled: boolean; }
 export interface CareRequest { id: string; seniorId: string; kind: 'therapy' | 'meal'; detail: string; partnerId?: string; status: 'pending' | 'approved' | 'rejected'; professional?: string; decision?: string; }
-export interface CareData { plans: ExercisePlan[]; subscriptions: Subscription[]; requests: CareRequest[]; completions: { seniorId: string; planId: string; date: string; day: string }[]; }
+export type ReminderKind = 'medicine' | 'exercise' | 'meal' | 'water' | 'other';
+/** Repeating daily reminder. `days` uses JS weekday numbers (0 = Sunday). */
+export interface Reminder { id: string; seniorId: string; kind: ReminderKind; label: string; time: string; days: number[]; active: boolean; createdBy: string; lastFired?: string; }
+export interface CareData { plans: ExercisePlan[]; subscriptions: Subscription[]; requests: CareRequest[]; completions: { seniorId: string; planId: string; date: string; day: string }[]; reminders: Reminder[]; bookingAlerts: string[]; }
 export const EXERCISE_SUBSCRIPTION = { price: 1999, sessions: 8, days: 30 } as const;
 export const freshCare = (): CareData => ({
   plans: [{ id: 'plan-chair', coachId: 'c1', name: 'Gentle movement week', days: [
@@ -15,6 +18,7 @@ export const freshCare = (): CareData => ({
     { day: 'Friday', title: 'Breathwork and calm', minutes: 10 }, { day: 'Saturday', title: 'Chair yoga', minutes: 15 },
     { day: 'Sunday', title: 'Rest and recovery', minutes: 0 },
   ] }], subscriptions: [], requests: [], completions: [],
+  reminders: [], bookingAlerts: [],
 });
 
 /** Mifflin–St Jeor maintenance estimate, not a therapeutic prescription. */
@@ -30,7 +34,29 @@ export function safeVideoUrl(url: string): boolean {
 }
 export function hasActiveSubscription(s: Subscription, now = new Date()): boolean { return !s.cancelled && new Date(s.ends) > now && new Date(s.starts) <= now; }
 export function needsNutritionReview(h: HealthProfile): boolean { return h.conditions.length > 0 || !!h.records?.length || !!h.history; }
-export function coachRating(coachId: string, bookings: Booking[], fallback: number): { rating: number; count: number } {
-  const reviews = bookings.filter(b => b.type === 'fitness' && b.partnerId === coachId && b.status === 'completed' && b.review).map(b => b.review?.rating ?? 0);
+/** Average of completed, reviewed bookings for one partner; falls back to the listed rating when none exist. */
+export function partnerRating(type: Booking['type'], partnerId: string, bookings: Booking[], fallback = 0): { rating: number; count: number } {
+  const reviews = bookings.filter(b => b.type === type && b.partnerId === partnerId && b.status === 'completed' && b.review).map(b => b.review?.rating ?? 0);
   return { rating: reviews.length ? Math.round(reviews.reduce((a, b) => a + b, 0) / reviews.length * 10) / 10 : fallback, count: reviews.length };
+}
+export function coachRating(coachId: string, bookings: Booking[], fallback: number): { rating: number; count: number } {
+  return partnerRating('fitness', coachId, bookings, fallback);
+}
+
+export const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export function validReminder(r: Pick<Reminder, 'label' | 'time' | 'days'>): boolean {
+  return !!r.label.trim() && r.label.length <= 80 && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time) && r.days.length > 0 && r.days.every(d => Number.isInteger(d) && d >= 0 && d <= 6) && new Set(r.days).size === r.days.length;
+}
+/** Reminders whose time has passed today (within `windowMin`) and that have not fired today. */
+export function dueReminders(reminders: Reminder[], now = new Date(), windowMin = 60): Reminder[] {
+  const today = localDate(now); const mins = now.getHours() * 60 + now.getMinutes();
+  return reminders.filter(r => {
+    if (!r.active || r.lastFired === today || !r.days.includes(now.getDay())) return false;
+    const [h, m] = r.time.split(':').map(Number); const at = h * 60 + m;
+    return at <= mins && mins - at <= windowMin;
+  });
+}
+/** Active bookings starting within the next hour that have not been alerted yet. */
+export function bookingsStartingSoon(bookings: Booking[], alerted: string[], now = new Date(), withinMin = 60): Booking[] {
+  return bookings.filter(b => !['cancelled', 'completed'].includes(b.status) && !alerted.includes(b.id) && new Date(b.when).getTime() > now.getTime() && new Date(b.when).getTime() - now.getTime() <= withinMin * 60000);
 }

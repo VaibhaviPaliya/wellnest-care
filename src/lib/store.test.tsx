@@ -38,7 +38,7 @@ describe("WellNest care rules", () => {
     act(() => result.current.deleteHealthData());
     expect(result.current.me?.health).toBeUndefined();
     expect(result.current.me?.consent).toBeUndefined();
-    expect(result.current.db.bookings).toHaveLength(3);
+    expect(result.current.db.bookings).toHaveLength(seedBookings.length);
   });
 
   it("only allows a family member to manage linked seniors", async () => {
@@ -67,7 +67,7 @@ describe("WellNest care rules", () => {
   it("rejects an unverified coach at booking time", async () => {
     const result = await store();
     expect(() => result.current.createBooking({ type: "fitness", title: "Yoga", partnerId: "c5", partnerName: "Sunil", amount: 349, when: new Date(Date.now() + 86400000).toISOString(), detail: "Gentle" })).toThrow("not available");
-    expect(result.current.db.bookings).toHaveLength(3);
+    expect(result.current.db.bookings).toHaveLength(seedBookings.length);
   });
 
   it("starts medicine requests in pharmacy review and alerts every linked family member with time", async () => {
@@ -127,5 +127,34 @@ describe("WellNest care rules", () => {
     const result = await store("9999999999");
     act(() => { expect(result.current.deleteAccount()).toMatch(/only administrator/); });
     expect(result.current.me?.role).toBe("admin");
+  });
+
+  it("lets linked family add a reminder that fires once for the senior and family", async () => {
+    const result = await store("9123456789");
+    let error: string | null = "not run";
+    act(() => { error = result.current.addReminder({ kind: "medicine", label: "Metformin", time: "08:00", days: [0, 1, 2, 3, 4, 5, 6] }); });
+    expect(error).toBeNull();
+    const reminder = result.current.db.care.reminders[0];
+    expect(reminder.seniorId).toBe("u-senior-1");
+    const eight = new Date(); eight.setHours(8, 10, 0, 0);
+    act(() => { result.current.runTimers(eight); });
+    act(() => { result.current.runTimers(eight); });
+    const fired = result.current.db.notices.filter((n) => n.title === "Reminder: Metformin");
+    expect(fired.map((n) => n.userId).sort()).toEqual(["u-family-1", "u-senior-1"]);
+  });
+
+  it("removes reminders when the senior deletes their health data", async () => {
+    const result = await store();
+    act(() => { result.current.addReminder({ kind: "water", label: "Water", time: "10:00", days: [1] }); });
+    expect(result.current.db.care.reminders).toHaveLength(1);
+    act(() => result.current.deleteHealthData());
+    expect(result.current.db.care.reminders).toHaveLength(0);
+  });
+
+  it("does not let an unlinked family member add reminders", async () => {
+    const hook = renderHook(() => useStore(), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    act(() => { hook.result.current.register("9000000003", "Cousin", "family"); });
+    expect(hook.result.current.addReminder({ kind: "other", label: "Call", time: "09:00", days: [1] })).not.toBeNull();
   });
 });

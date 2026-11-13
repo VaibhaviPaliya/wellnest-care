@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { TAG_LABEL, type DietTag } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
 import { CareAdmin } from '@/components/CareFeatures';
+import { RatingBadge } from '@/components/RatingBadge';
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -53,16 +54,16 @@ function Admin() {
 
       {tab === "partners" && (
         <div className="space-y-6">
-          {([["coaches", "Fitness coaches", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: c.types.join(", "), verified: c.verified }))],
-             ["kitchens", "Partner kitchens", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: k.area, verified: k.verified }))],
-             ["pharmacies", "Pharmacies", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified }))]] as const).map(([kind, title, rows]) => (
+          {([["coaches", "Fitness coaches", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: c.types.join(", "), verified: c.verified, type: "fitness" as const, fallback: c.rating }))],
+             ["kitchens", "Partner kitchens", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: k.area, verified: k.verified, type: "meal" as const, fallback: 0 }))],
+             ["pharmacies", "Pharmacies", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified, type: "medicine" as const, fallback: 0 }))]] as const).map(([kind, title, rows]) => (
             <section key={kind} className="surface p-5">
               <h2 className="text-2xl font-bold">{title}</h2>
               <p className="text-muted-foreground">Unverified partners are hidden from search.</p>
               <ul className="mt-3 divide-y-2">
                 {rows.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-3 py-3">
-                    <div><p className="font-bold">{r.name}</p><p className="text-sm capitalize text-muted-foreground">{r.sub}</p></div>
+                    <div><p className="font-bold">{r.name}</p><p className="text-sm capitalize text-muted-foreground">{r.sub}</p><RatingBadge type={r.type} partnerId={r.id} fallback={r.fallback} /></div>
                     <label className="flex cursor-pointer items-center gap-3">
                       <span className={`font-bold ${r.verified ? "text-success" : "text-destructive"}`}>{r.verified ? "Verified" : "Unverified"}</span>
                       <Button variant="care" size="care" role="switch" aria-checked={r.verified} aria-label={`Verify ${r.name}`} onClick={() => toggleVerify(kind, r.id)}

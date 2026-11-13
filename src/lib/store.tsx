@@ -5,7 +5,7 @@ import {
 } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
-import { EXERCISE_SUBSCRIPTION, freshCare, hasActiveSubscription, safeVideoUrl, validNutrition, type CareData, type ExercisePlan, type Nutrition } from './care';
+import { EXERCISE_SUBSCRIPTION, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
 export interface DB {
   users: User[]; coaches: Coach[]; kitchens: Kitchen[]; dishes: Dish[]; pharmacies: Pharmacy[];
@@ -50,6 +50,11 @@ interface Ctx {
   requestCare: (kind: 'therapy' | 'meal', detail: string, partnerId?: string) => string | null;
   decideCare: (id: string, approved: boolean, professional: string, decision: string) => string | null;
   saveDishNutrition: (id: string, nutrition: Nutrition) => string | null;
+  addReminder: (r: Pick<Reminder, 'kind' | 'label' | 'time' | 'days'>) => string | null;
+  toggleReminder: (id: string) => void;
+  deleteReminder: (id: string) => void;
+  /** Fires due reminders and one-hour booking heads-ups for the managed senior; returns the titles fired. */
+  runTimers: (now?: Date) => string[];
   /** Signed in with a real emailed code but has not finished registering yet. */
   pendingCloud: { id: string; email: string } | null;
   completeCloudRegistration: (p: { name: string; username: string; role: Role; age?: number; city?: string }) => Promise<string | null>;
@@ -159,6 +164,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update(d => ({ ...d, dishes: d.dishes.map(dish => dish.id === id ? { ...dish, nutrition } : dish) }));
       return null;
     },
+    addReminder: (r) => {
+      if (!senior?.consent?.given || !canManageSenior(me, senior)) return 'Complete consent and link a senior first.';
+      if (!validReminder(r)) return 'Enter a label (up to 80 characters), a time and at least one day.';
+      if (db.care.reminders.filter(x => x.seniorId === senior.id).length >= 30) return 'You can keep up to 30 reminders.';
+      const reminder: Reminder = { id: uid('rem'), seniorId: senior.id, kind: r.kind, label: r.label.trim(), time: r.time, days: [...r.days].sort(), active: true, createdBy: me!.id };
+      update(d => ({ ...d, care: { ...d.care, reminders: [...d.care.reminders, reminder] }, notices: notifyAll(d, senior.id, 'Reminder added', `${reminder.label} · ${reminder.time} · added by ${me!.name}`) }));
+      return null;
+    },
+    toggleReminder: (id) => {
+      if (!senior || !canManageSenior(me, senior)) return;
+      update(d => ({ ...d, care: { ...d.care, reminders: d.care.reminders.map(r => r.id === id && r.seniorId === senior.id ? { ...r, active: !r.active } : r) } }));
+    },
+    deleteReminder: (id) => {
+      if (!senior || !canManageSenior(me, senior)) return;
+      update(d => ({ ...d, care: { ...d.care, reminders: d.care.reminders.filter(r => !(r.id === id && r.seniorId === senior.id)) } }));
+    },
+    runTimers: (now = new Date()) => {
+      if (!senior?.consent?.given || !canManageSenior(me, senior)) return [];
+      const due = dueReminders(db.care.reminders.filter(r => r.seniorId === senior.id), now);
+      const soon = bookingsStartingSoon(db.bookings.filter(b => b.seniorId === senior.id), db.care.bookingAlerts, now);
+      if (!due.length && !soon.length) return [];
+      const titles = [...due.map(r => `Reminder: ${r.label}`), ...soon.map(b => `Starting soon: ${b.title}`)];
+      const today = localDate(now);
+      update(d => {
+        // Recompute from the latest state so overlapping timer ticks never fire twice.
+        const dueNow = dueReminders(d.care.reminders.filter(r => r.seniorId === senior.id), now);
+        const soonNow = bookingsStartingSoon(d.bookings.filter(b => b.seniorId === senior.id), d.care.bookingAlerts, now);
+        if (!dueNow.length && !soonNow.length) return d;
+        const dueIds = new Set(dueNow.map(r => r.id));
+        let notices = d.notices;
+        for (const r of dueNow) notices = notifyAll({ ...d, notices }, senior.id, `Reminder: ${r.label}`, `Scheduled for ${r.time} today`);
+        for (const b of soonNow) notices = notifyAll({ ...d, notices }, senior.id, `Starting soon: ${b.title}`, `${b.partnerName} · ${new Date(b.when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`);
+        return { ...d, notices, care: { ...d.care, reminders: d.care.reminders.map(r => dueIds.has(r.id) ? { ...r, lastFired: today } : r), bookingAlerts: [...d.care.bookingAlerts, ...soonNow.map(b => b.id)].slice(-200) } };
+      });
+      return titles;
+    },
     completeCloudRegistration: async (p) => {
       if (!pendingCloud) return "Please verify your email first.";
       if (p.role !== "senior" && p.role !== "family") return "Only Senior or Family accounts can be registered.";
@@ -214,7 +255,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((d) => ({ ...d, currentUserId: null, activeSeniorId: null,
         users: d.users.filter((u) => u.id !== id).map((u) => ({ ...u, linkedSeniorIds: u.linkedSeniorIds.filter((x) => x !== id) })),
         bookings: d.bookings.filter((b) => b.seniorId !== id),
-        notices: d.notices.filter((n) => n.userId !== id) }));
+        notices: d.notices.filter((n) => n.userId !== id),
+        care: { ...d.care, reminders: d.care.reminders.filter((r) => r.seniorId !== id) } }));
       void supabase.auth.signOut(); setPendingCloud(null);
       return null;
     },
@@ -226,7 +268,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     deleteHealthData: () => {
       if (me?.role !== "senior") return;
-      update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b), care: { ...d.care, requests: d.care.requests.filter(r => r.seniorId !== me.id), completions: d.care.completions.filter(c => c.seniorId !== me.id) } }));
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b), care: { ...d.care, requests: d.care.requests.filter(r => r.seniorId !== me.id), completions: d.care.completions.filter(c => c.seniorId !== me.id), reminders: d.care.reminders.filter(r => r.seniorId !== me.id) } }));
     },
     linkSenior: (phone) => {
       if (me?.role !== "family") return "Only family accounts can link a senior.";

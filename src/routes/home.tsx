@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Dumbbell, Soup, Pill, ArrowRight, CalendarClock } from "lucide-react";
+import { Dumbbell, Soup, Pill, ArrowRight, CalendarClock, AlarmClock } from "lucide-react";
 import { Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { CONDITION_LABEL } from "@/lib/seed";
+import { useT } from "@/lib/i18n";
+import { localDate } from "@/lib/care";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -26,51 +28,81 @@ const TILES = [
 
 function HomePage() {
   const { me, senior, db } = useStore();
+  const { t } = useT();
   if (!me || !senior) return <NoSenior />;
   const mine = db.bookings.filter((b) => b.seniorId === senior.id && !["completed", "cancelled"].includes(b.status)).sort((a, b) => a.when.localeCompare(b.when));
   const todayStr = new Date().toDateString();
   const today = mine.filter((b) => new Date(b.when).toDateString() === todayStr);
   const upcoming = mine.filter((b) => new Date(b.when).toDateString() !== todayStr);
   const hour = new Date().getHours();
-  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greet = hour < 12 ? "Good morning, {name}" : hour < 17 ? "Good afternoon, {name}" : "Good evening, {name}";
 
   return (
     <>
-      <h1 className="text-3xl font-bold md:text-4xl">{greet}, {me.name.split(" ")[0]}</h1>
+      <h1 className="text-3xl font-bold md:text-4xl">{t(greet, { name: me.name.split(" ")[0] })}</h1>
       {me.role === "family" ? (
-        <p className="mt-1 text-lg text-muted-foreground">You’re looking after <strong className="text-foreground">{senior.name}</strong>. Anything you book is for them.</p>
+        <p className="mt-1 text-lg text-muted-foreground">{t("You’re looking after {name}. Anything you book is for them.", { name: senior.name })}</p>
       ) : (
-        <p className="mt-1 text-lg text-muted-foreground">What would you like help with today?</p>
+        <p className="mt-1 text-lg text-muted-foreground">{t("What would you like help with today?")}</p>
       )}
       {!!senior.health?.conditions.length && (
         <div className="mt-3 flex flex-wrap gap-2">{senior.health.conditions.map((c) => <span key={c} className="tag">{CONDITION_LABEL[c]}</span>)}</div>
       )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {TILES.map((t) => (
-          <Link key={t.to} to={t.to} className={`group surface flex flex-col p-6 transition hover:-translate-y-1 ${t.bg}`}>
-            <t.icon className="h-12 w-12 text-primary" strokeWidth={1.8} />
-            <h2 className="mt-4 text-2xl font-bold">{t.title}</h2>
-            <p className="mt-1 flex-1 text-lg">{t.sub}</p>
-            <span className="mt-4 inline-flex items-center gap-2 font-bold text-primary">Open <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span>
+        {TILES.map((tile) => (
+          <Link key={tile.to} to={tile.to} className={`group surface flex flex-col p-6 transition hover:-translate-y-1 ${tile.bg}`}>
+            <tile.icon className="h-12 w-12 text-primary" strokeWidth={1.8} />
+            <h2 className="mt-4 text-2xl font-bold">{t(tile.title)}</h2>
+            <p className="mt-1 flex-1 text-lg">{t(tile.sub)}</p>
+            <span className="mt-4 inline-flex items-center gap-2 font-bold text-primary">{t("Open")} <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span>
           </Link>
         ))}
       </div>
 
+      <TodayReminders seniorId={senior.id} />
       <Section title="Today" items={today} empty="Nothing scheduled for today." />
       <Section title="Coming up" items={upcoming} empty="No upcoming bookings yet." />
     </>
   );
 }
 
-function Section({ title, items, empty }: { title: string; items: ReturnType<typeof useStore>["db"]["bookings"]; empty: string }) {
+function TodayReminders({ seniorId }: { seniorId: string }) {
+  const { db } = useStore();
+  const { t } = useT();
+  const now = new Date();
+  const today = localDate(now);
+  const list = db.care.reminders.filter((r) => r.seniorId === seniorId && r.active && r.days.includes(now.getDay())).sort((a, b) => a.time.localeCompare(b.time));
   return (
     <section className="mt-8">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-2xl font-bold">{title}</h2>
-        <Link to="/activity" className="font-semibold text-primary underline">See all</Link>
+        <h2 className="flex items-center gap-2 text-2xl font-bold"><AlarmClock className="h-6 w-6 text-accent" />{t("Today’s reminders")}</h2>
+        <Link to="/reminders" className="font-semibold text-primary underline">{t("Manage reminders")}</Link>
       </div>
-      {items.length === 0 ? <p className="surface p-5 text-lg text-muted-foreground">{empty}</p> : (
+      {list.length === 0 ? <p className="surface p-5 text-lg text-muted-foreground">{t("No reminders set for today.")}</p> : (
+        <ul className="flex flex-wrap gap-3">
+          {list.map((r) => (
+            <li key={r.id} className={`surface flex items-center gap-3 px-4 py-3 ${r.lastFired === today ? "opacity-70" : ""}`}>
+              <span className="font-display text-xl font-bold">{r.time}</span>
+              <span className="text-lg">{r.label}</span>
+              {r.lastFired === today && <span className="tag">{t("Done today")}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Section({ title, items, empty }: { title: string; items: ReturnType<typeof useStore>["db"]["bookings"]; empty: string }) {
+  const { t } = useT();
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-2xl font-bold">{t(title)}</h2>
+        <Link to="/activity" className="font-semibold text-primary underline">{t("See all")}</Link>
+      </div>
+      {items.length === 0 ? <p className="surface p-5 text-lg text-muted-foreground">{t(empty)}</p> : (
         <ul className="space-y-3">
           {items.map((b) => (
             <li key={b.id} className="surface flex items-center gap-4 p-4">
@@ -79,7 +111,7 @@ function Section({ title, items, empty }: { title: string; items: ReturnType<typ
                 <p className="text-lg font-bold">{b.title}</p>
                 <p className="text-muted-foreground">{fmtWhen(b.when)} · {b.partnerName}</p>
               </div>
-              <span className="tag">{STATUS_LABEL[b.status]}</span>
+              <span className="tag">{t(STATUS_LABEL[b.status])}</span>
             </li>
           ))}
         </ul>
@@ -89,11 +121,12 @@ function Section({ title, items, empty }: { title: string; items: ReturnType<typ
 }
 
 function NoSenior() {
+  const { t } = useT();
   return (
     <div className="surface p-8 text-center">
-      <h1 className="text-3xl font-bold">Link a family member first</h1>
+      <h1 className="text-3xl font-bold">{t("Link a family member first")}</h1>
       <p className="mt-2 text-lg text-muted-foreground">Connect to your parent’s or relative’s WellNest account to book and track care for them.</p>
-      <Link to="/family" className="btn btn-primary mt-6">Link a senior</Link>
+      <Link to="/family" className="btn btn-primary mt-6">{t("Link a senior")}</Link>
     </div>
   );
 }

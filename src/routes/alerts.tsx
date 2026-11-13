@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { BellRing } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/alerts")({
   head: () => ({
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/alerts")({
 
 function Alerts() {
   const { db, me, markRead } = useStore();
+  const { t } = useT();
   const list = db.notices.filter((n) => n.userId === me?.id);
   useEffect(() => { const t = setTimeout(markRead, 1500); return () => clearTimeout(t); }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -36,7 +38,7 @@ function Alerts() {
             </div>
           </li>
         ))}
-        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">No alerts yet.</p>}
+        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">{t("No alerts yet.")}</p>}
       </ul>
     </>
   );

@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import type { Booking, Status } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
 import { DemoTracking } from '@/components/CareFeatures';
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/activity")({
   head: () => ({
@@ -27,20 +28,21 @@ const ICON = { fitness: Dumbbell, meal: Soup, medicine: Pill };
 
 function Activity() {
   const { db, senior } = useStore();
+  const { t } = useT();
   const [tab, setTab] = useState<"active" | "past">("active");
   if (!senior) return null;
   const all = db.bookings.filter((b) => b.seniorId === senior.id);
   const list = all.filter((b) => (tab === "active" ? !["completed", "cancelled"].includes(b.status) : ["completed", "cancelled"].includes(b.status)));
   return (
     <>
-      <PageTitle title="Bookings & Orders" sub={`For ${senior.name}`} />
+      <PageTitle title="Bookings & Orders" sub={t("For {name}", { name: senior.name })} />
       <div className="mb-5 flex gap-2">
-        <Button variant="care" size="care" className="chip" aria-pressed={tab === "active"} onClick={() => setTab("active")}>Active</Button>
-        <Button variant="care" size="care" className="chip" aria-pressed={tab === "past"} onClick={() => setTab("past")}>Past</Button>
+        <Button variant="care" size="care" className="chip" aria-pressed={tab === "active"} onClick={() => setTab("active")}>{t("Active")}</Button>
+        <Button variant="care" size="care" className="chip" aria-pressed={tab === "past"} onClick={() => setTab("past")}>{t("Past")}</Button>
       </div>
       <ul className="space-y-4">
         {list.map((b) => <BookingCard key={b.id} b={b} />)}
-        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">Nothing here yet.</p>}
+        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">{t("Nothing here yet.")}</p>}
       </ul>
     </>
   );
@@ -48,6 +50,7 @@ function Activity() {
 
 function BookingCard({ b }: { b: Booking }) {
   const { setStatus, review, db, me } = useStore();
+  const { t } = useT();
   const [rating, setRating] = useState(0);
   const [text, setText] = useState("");
   const steps = FLOW[b.type];
@@ -64,7 +67,7 @@ function BookingCard({ b }: { b: Booking }) {
           <p className="text-muted-foreground">{b.subscriptionId ? 'Subscription credit' : `₹${b.amount} paid · ${b.upiRef}`} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
           {b.items?.length ? <p className="mt-1">{b.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</p> : <p className="mt-1">{b.detail}</p>}
         </div>
-        <span className="tag">{STATUS_LABEL[b.status]}</span>
+        <span className="tag">{t(STATUS_LABEL[b.status])}</span>
       </div>
       {b.videoUrl && b.status !== "cancelled" && <a href={b.videoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-4">Join online class</a>}
       {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-3 inline-block text-primary underline">View prescription: {b.prescription}</a>}

@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "sonner";
 import { StoreProvider } from "../lib/store";
+import { LangProvider } from "../lib/i18n";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -124,10 +125,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <LangProvider>
       <StoreProvider>
         <Outlet />
         <Toaster position="top-center" richColors toastOptions={{ style: { fontSize: "1.05rem" } }} />
       </StoreProvider>
+      </LangProvider>
     </QueryClientProvider>
   );
 }
