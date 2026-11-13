@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileText, X } from "lucide-react";
+import { MetricsFields } from './CareFeatures';
+import { calorieTarget } from '@/lib/care';
 import { CONDITION_LABEL, DIET_LABEL, MOBILITY_LABEL, type Condition, type DietPref, type HealthProfile, type MedicalRecord, type Mobility } from "@/lib/seed";
 
 export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: { initial?: HealthProfile; initialAddress?: string; submitLabel: string; onSubmit: (h: HealthProfile, address: string) => void }) {
@@ -12,6 +14,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
   const [address, setAddress] = useState(initialAddress ?? "");
   const [records, setRecords] = useState<MedicalRecord[]>(initial?.records ?? []);
   const [history, setHistory] = useState(initial?.history ?? "");
+  const [metrics, setMetrics] = useState(initial?.metrics);
   const addFiles = (files: FileList | null) => {
     for (const f of Array.from(files ?? [])) {
       if (!["image/jpeg", "image/png", "application/pdf"].includes(f.type)) { toast.error(`${f.name}: please use JPG, PNG or PDF.`); continue; }
