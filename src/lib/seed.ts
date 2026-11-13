@@ -13,6 +13,7 @@ export interface HealthProfile {
   records?: MedicalRecord[];
   /** Free-text notes from past medical history. */
   history?: string;
+  metrics?: import('./care').Metrics;
 }
 export interface MedicalRecord { id: string; name: string; type: string; size: number; data: string; at: string; }
 export interface User {
@@ -35,10 +36,11 @@ export interface Coach {
   level: "gentle" | "moderate"; mode: ("home" | "online")[]; price: number;
   slots: string[]; verified: boolean; bio: string; rating: number; years: number;
 }
-export interface Kitchen { id: string; name: string; area: string; verified: boolean; }
+export interface Kitchen { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; }
 export interface Dish {
   id: string; kitchenId: string; name: string; price: number;
   diet: "veg" | "non_veg" | "egg"; jain: boolean; tags: DietTag[]; desc: string;
+  nutrition?: import('./care').Nutrition;
 }
 export interface Pharmacy { id: string; name: string; area: string; verified: boolean; eta: string; }
 export interface Medicine { id: string; name: string; dose: string; price: number; }
@@ -51,6 +53,7 @@ export interface Booking {
   items?: { name: string; qty: number; price: number }[];
   prescription?: string; prescriptionData?: string; videoUrl?: string; review?: { rating: number; text: string };
   upiRef: string;
+  subscriptionId?: string;
 }
 export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; }
 
@@ -95,9 +98,9 @@ export const seedCoaches: Coach[] = [
 ];
 
 export const seedKitchens: Kitchen[] = [
-  { id: "k1", name: "Annapoorna Wellness Kitchen", area: "Jayanagar", verified: true },
-  { id: "k2", name: "Gentle Bites", area: "Indiranagar", verified: true },
-  { id: "k3", name: "HeartSmart Meals", area: "Koramangala", verified: true },
+  { id: "k1", name: "Annapoorna Wellness Kitchen", area: "Jayanagar", verified: true, kind: 'dabba', customizes: true },
+  { id: "k2", name: "Gentle Bites", area: "Indiranagar", verified: true, kind: 'restaurant', customizes: true },
+  { id: "k3", name: "HeartSmart Meals", area: "Koramangala", verified: true, kind: 'restaurant', customizes: true },
   { id: "k4", name: "Spice Street Express", area: "MG Road", verified: false },
 ];
 

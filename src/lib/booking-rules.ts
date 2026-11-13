@@ -1,7 +1,7 @@
 import type { Booking, Status, User } from "./seed";
 
 export const FLOW: Record<Booking["type"], Status[]> = {
-  fitness: ["confirmed", "completed"],
+  fitness: ["confirmed", "in_progress", "completed"],
   meal: ["confirmed", "in_progress", "out_for_delivery", "completed"],
   medicine: ["pending_review", "confirmed", "out_for_delivery", "completed"],
 };
