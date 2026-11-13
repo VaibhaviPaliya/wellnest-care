@@ -6,6 +6,7 @@ import { Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { TAG_LABEL, type DietTag } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
+import { CareAdmin } from '@/components/CareFeatures';
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/admin")({
   component: () => <Shell roles={["admin"]}><Admin /></Shell>,
 });
 
-type Tab = "partners" | "dishes" | "orders";
+type Tab = "partners" | "dishes" | "orders" | 'care';
 
 function Admin() {
   const { db, toggleVerify, toggleDishTag, resetDemo, setStatus } = useStore();
@@ -47,7 +48,7 @@ function Admin() {
         {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-3xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
       </div>
       <div className="my-6 flex flex-wrap gap-2">
-        {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"]] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
+        {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
       </div>
 
       {tab === "partners" && (
@@ -76,6 +77,7 @@ function Admin() {
           ))}
         </div>
       )}
+      {tab === 'care' && <CareAdmin />}
 
       {tab === "dishes" && (
         <div className="surface overflow-x-auto p-5">

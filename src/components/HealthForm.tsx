@@ -52,6 +52,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
           ))}
         </div>
       </fieldset>
+      <MetricsFields value={metrics} onChange={setMetrics} />
       <div>
         <label htmlFor="allergy" className="mb-2 block text-lg font-bold">Allergies (optional)</label>
         <input id="allergy" className="field" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Peanuts" />
@@ -68,7 +69,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
         <label htmlFor="addr" className="mb-2 block text-lg font-bold">Home address for visits & delivery</label>
         <textarea id="addr" rows={2} className="field" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
-      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!address.trim()} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, history: history.trim() || undefined }, address.trim())}>{submitLabel}</Button>
+      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!address.trim() || (!!metrics && !calorieTarget(metrics))} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, metrics, history: history.trim() || undefined }, address.trim())}>{submitLabel}</Button>
     </div>
   );
 }
