@@ -8,6 +8,8 @@ import { useStore } from "@/lib/store";
 import type { Coach } from "@/lib/seed";
 import { isSlotAvailable, sessionDate } from "@/lib/booking-rules";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { FitnessExtras } from '@/components/CareFeatures';
+import { coachRating, hasActiveSubscription } from '@/lib/care';
 
 export const Route = createFileRoute("/fitness")({
   head: () => ({
@@ -45,10 +47,17 @@ function Fitness() {
     setSel({ coach, day, slot, mode: sessionMode, kind: type !== "all" && coach.types.includes(type) ? type : coach.types[0] });
   };
   const available = !!sel && isSlotAvailable(sel.day, sel.slot, sel.coach.id, db.bookings);
+  const credit = sel ? db.care.subscriptions.find(s => s.seniorId === senior?.id && hasActiveSubscription(s) && s.remaining > 0 && db.care.plans.find(p => p.id === s.planId)?.coachId === sel.coach.id && sessionDate(sel.day, sel.slot) < new Date(s.ends)) : undefined;
+  const book = (useCredit: boolean) => {
+    if (!sel || !available) throw new Error('This slot is no longer available.');
+    createBooking({ type: 'fitness', title: `${sel.kind[0].toUpperCase() + sel.kind.slice(1)} · ${sel.mode === 'home' ? 'Home visit' : 'Online live'}`, partnerId: sel.coach.id, partnerName: sel.coach.name, amount: useCredit ? 0 : sel.coach.price, when: sessionDate(sel.day, sel.slot).toISOString(), detail: `${sel.coach.level} level${useCredit ? ' · subscription credit' : ''}`, subscriptionId: useCredit ? credit?.id : undefined, videoUrl: sel.mode === 'online' ? 'https://meet.jit.si/WellNest-' + sel.coach.id + '-' + sessionDate(sel.day, sel.slot).getTime() : undefined });
+    toast.success('Session booked! Family members have been alerted.');
+  };
 
   return (
     <>
       <PageTitle title="Fitness Coaches" sub="Every coach is background-verified and trained for seniors." />
+      <FitnessExtras />
       <div className="surface space-y-3 p-4">
         <Filter label="Type" value={type} set={setType} opts={[["all", "All"], ["yoga", "Yoga"], ["mobility", "Mobility"], ["meditation", "Meditation"]]} />
         <Filter label="Where" value={mode} set={setMode} opts={[["all", "Any"], ["home", "Home visit"], ["online", "Online live"]]} />
@@ -61,7 +70,7 @@ function Fitness() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h2 className="flex items-center gap-2 text-2xl font-bold">{c.name}<BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" /></h2>
-                <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {c.rating}</p>
+                <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {coachRating(c.id, db.bookings, c.rating).rating} · {coachRating(c.id, db.bookings, c.rating).count || 'Sample'} reviews</p>
               </div>
               <p className="font-display text-2xl font-bold">₹{c.price}</p>
             </div>
@@ -91,6 +100,7 @@ function Fitness() {
             <p className="mb-2 mt-4 font-bold">Time</p>
             <div className="flex flex-wrap gap-2">{sel.coach.slots.map((s) => <Button variant="care" size="care" key={s} className="chip" disabled={!isSlotAvailable(sel.day, s, sel.coach.id, db.bookings)} aria-pressed={sel.slot === s} onClick={() => setSel({ ...sel, slot: s })}>{s}</Button>)}</div>
             <div className="mt-6 flex gap-3">
+              {credit && <Button variant="care" size="care" className="btn btn-primary" disabled={!available} onClick={() => { try { book(true); setSel(null); nav({ to: '/activity' }); } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not book.'); } }}>Use 1 credit</Button>}
               <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={() => setSel(null)}>Cancel</Button>
               <Button variant="care" size="care" className="btn btn-accent flex-1" disabled={!available} onClick={() => setPay(true)}>Pay ₹{sel.coach.price}</Button>
             </div>
@@ -100,9 +110,7 @@ function Fitness() {
       <UpiCheckout open={pay} amount={sel?.coach.price ?? 0} title={sel ? `${sel.kind} with ${sel.coach.name}` : ""}
         onClose={() => { setPay(false); }}
         onPaid={() => {
-          if (!sel || !available) throw new Error("This slot is no longer available. Choose another time.");
-          createBooking({ type: "fitness", title: `${sel.kind[0].toUpperCase() + sel.kind.slice(1)} · ${sel.mode === "home" ? "Home visit" : "Online live"}`, partnerId: sel.coach.id, partnerName: sel.coach.name, amount: sel.coach.price, when: sessionDate(sel.day, sel.slot).toISOString(), detail: `${sel.coach.level} level`, videoUrl: sel.mode === "online" ? "https://meet.jit.si/WellNest-" + sel.coach.id + "-" + sessionDate(sel.day, sel.slot).getTime() : undefined });
-          toast.success("Session booked! Family members have been alerted.");
+          book(false);
         }} onDone={() => { setPay(false); setSel(null); nav({ to: "/activity" }); }} />
     </>
   );

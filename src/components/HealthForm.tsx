@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FileText, X } from "lucide-react";
+import { MetricsFields } from './CareFeatures';
+import { calorieTarget } from '@/lib/care';
 import { CONDITION_LABEL, DIET_LABEL, MOBILITY_LABEL, type Condition, type DietPref, type HealthProfile, type MedicalRecord, type Mobility } from "@/lib/seed";
 
 export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: { initial?: HealthProfile; initialAddress?: string; submitLabel: string; onSubmit: (h: HealthProfile, address: string) => void }) {
@@ -12,6 +14,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
   const [address, setAddress] = useState(initialAddress ?? "");
   const [records, setRecords] = useState<MedicalRecord[]>(initial?.records ?? []);
   const [history, setHistory] = useState(initial?.history ?? "");
+  const [metrics, setMetrics] = useState(initial?.metrics);
   const addFiles = (files: FileList | null) => {
     for (const f of Array.from(files ?? [])) {
       if (!["image/jpeg", "image/png", "application/pdf"].includes(f.type)) { toast.error(`${f.name}: please use JPG, PNG or PDF.`); continue; }
@@ -49,6 +52,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
           ))}
         </div>
       </fieldset>
+      <MetricsFields value={metrics} onChange={setMetrics} />
       <div>
         <label htmlFor="allergy" className="mb-2 block text-lg font-bold">Allergies (optional)</label>
         <input id="allergy" className="field" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Peanuts" />
@@ -65,7 +69,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
         <label htmlFor="addr" className="mb-2 block text-lg font-bold">Home address for visits & delivery</label>
         <textarea id="addr" rows={2} className="field" value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
-      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!address.trim()} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, history: history.trim() || undefined }, address.trim())}>{submitLabel}</Button>
+      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!address.trim() || (!!metrics && !calorieTarget(metrics))} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, metrics, history: history.trim() || undefined }, address.trim())}>{submitLabel}</Button>
     </div>
   );
 }

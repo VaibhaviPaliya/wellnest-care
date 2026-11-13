@@ -5,15 +5,18 @@ import {
 } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
+import { EXERCISE_SUBSCRIPTION, freshCare, hasActiveSubscription, safeVideoUrl, validNutrition, type CareData, type ExercisePlan, type Nutrition } from './care';
 
 export interface DB {
   users: User[]; coaches: Coach[]; kitchens: Kitchen[]; dishes: Dish[]; pharmacies: Pharmacy[];
   bookings: Booking[]; notices: Notice[]; currentUserId: string | null; activeSeniorId: string | null;
+  care: CareData;
 }
 const KEY = "wellnest-db-v1";
 const fresh = (): DB => ({
   users: seedUsers, coaches: seedCoaches, kitchens: seedKitchens, dishes: seedDishes, pharmacies: seedPharmacies,
   bookings: seedBookings, notices: seedNotices, currentUserId: null, activeSeniorId: null,
+  care: freshCare(),
 });
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -40,6 +43,13 @@ interface Ctx {
   toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies", id: string) => void;
   toggleDishTag: (dishId: string, tag: DietTag) => void;
   resetDemo: () => void;
+  saveExercisePlan: (plan: ExercisePlan) => string | null;
+  subscribeExercise: (planId: string) => string | null;
+  cancelSubscription: (id: string) => void;
+  completeExercise: (planId: string, day: string) => void;
+  requestCare: (kind: 'therapy' | 'meal', detail: string, partnerId?: string) => string | null;
+  decideCare: (id: string, approved: boolean, professional: string, decision: string) => string | null;
+  saveDishNutrition: (id: string, nutrition: Nutrition) => string | null;
   /** Signed in with a real emailed code but has not finished registering yet. */
   pendingCloud: { id: string; email: string } | null;
   completeCloudRegistration: (p: { name: string; username: string; role: Role; age?: number; city?: string }) => Promise<string | null>;
@@ -53,7 +63,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const restore = (raw: string) => {
       const saved = JSON.parse(raw) as DB;
       if (!Array.isArray(saved.users) || !Array.isArray(saved.bookings) || !Array.isArray(saved.notices) || !Array.isArray(saved.coaches) || !Array.isArray(saved.kitchens) || !Array.isArray(saved.dishes) || !Array.isArray(saved.pharmacies)) return;
-      setDb({ ...fresh(), ...saved });
+      setDb({ ...fresh(), ...saved, care: { ...freshCare(), ...saved.care } });
     };
     try { const raw = localStorage.getItem(KEY); if (raw) restore(raw); } catch { /* use fresh demo */ }
     setReady(true);
@@ -104,6 +114,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = useMemo(() => ({
     ready, db, me, senior, medicines: seedMedicines, pendingCloud,
+    saveExercisePlan: (plan) => {
+      if (me?.role !== 'admin') return 'Only administrators can manage plans.';
+      if (!plan.name.trim() || !db.coaches.some(c => c.id === plan.coachId && c.verified) || plan.days.length !== 7 || new Set(plan.days.map(d => d.day)).size !== 7 || plan.days.some(d => !d.title.trim() || !Number.isFinite(d.minutes) || d.minutes < 0 || d.minutes > 60 || (d.videoUrl && !safeVideoUrl(d.videoUrl)))) return 'Enter seven days, durations of 0–60 minutes, and HTTPS video links.';
+      update(d => ({ ...d, care: { ...d.care, plans: d.care.plans.some(p => p.id === plan.id) ? d.care.plans.map(p => p.id === plan.id ? plan : p) : [...d.care.plans, plan] } }));
+      return null;
+    },
+    subscribeExercise: (planId) => {
+      if (!senior?.consent?.given || !senior.health || !canManageSenior(me, senior)) return 'Complete consent and link a senior first.';
+      const plan = db.care.plans.find(p => p.id === planId);
+      if (!plan || !db.coaches.some(c => c.id === plan.coachId && c.verified)) return 'This plan is not available.';
+      if (db.care.subscriptions.some(s => s.seniorId === senior.id && hasActiveSubscription(s))) return 'An exercise subscription is already active.';
+      const starts = new Date(); const ends = new Date(starts.getTime() + EXERCISE_SUBSCRIPTION.days * 86400000);
+      update(d => ({ ...d, care: { ...d.care, subscriptions: [...d.care.subscriptions, { id: uid('sub'), seniorId: senior.id, planId, starts: starts.toISOString(), ends: ends.toISOString(), remaining: EXERCISE_SUBSCRIPTION.sessions, cancelled: false }] }, notices: notifyAll(d, senior.id, 'Exercise subscription activated', `₹${EXERCISE_SUBSCRIPTION.price} demo UPI · ${EXERCISE_SUBSCRIPTION.sessions} sessions · expires ${ends.toLocaleDateString('en-IN')} · no automatic renewal`) }));
+      return null;
+    },
+    cancelSubscription: (id) => {
+      if (!senior || !canManageSenior(me, senior)) return;
+      update(d => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === id && s.seniorId === senior.id ? { ...s, cancelled: true } : s) }, notices: notifyAll(d, senior.id, 'Exercise subscription cancelled', 'Unused credits removed. Existing bookings stay. No automatic renewal or real charges.') }));
+    },
+    completeExercise: (planId, day) => {
+      if (!senior?.consent?.given || !canManageSenior(me, senior) || !db.care.plans.some(p => p.id === planId && p.days.some(d => d.day === day))) return;
+      const date = new Date().toISOString().slice(0, 10);
+      update(d => d.care.completions.some(c => c.seniorId === senior.id && c.planId === planId && c.day === day && c.date === date) ? d : ({ ...d, care: { ...d.care, completions: [...d.care.completions, { seniorId: senior.id, planId, date, day }] }, notices: notifyAll(d, senior.id, 'Exercise completed', `${day} · ${new Date().toLocaleString('en-IN')}`) }));
+    },
+    requestCare: (kind, detail, partnerId) => {
+      if (!senior?.consent?.given || !senior.health || !canManageSenior(me, senior)) return 'Complete consent and link a senior first.';
+      if (!detail.trim() || detail.length > 2000) return 'Enter a request of up to 2,000 characters.';
+      if (kind === 'meal' && !db.kitchens.some(k => k.id === partnerId && k.verified && k.customizes)) return 'Choose a verified kitchen that customizes meals.';
+      update(d => ({ ...d, care: { ...d.care, requests: [{ id: uid('req'), seniorId: senior.id, kind, detail: detail.trim(), partnerId, status: 'pending' }, ...d.care.requests] }, notices: notifyAll(d, senior.id, 'Professional review requested', `${kind === 'therapy' ? 'Therapy massage' : 'Meal customization'} · ${new Date().toLocaleString('en-IN')}`) }));
+      return null;
+    },
+    decideCare: (id, approved, professional, decision) => {
+      if (me?.role !== 'admin') return 'Only administrators can record a professional decision.';
+      if (!professional.trim() || !decision.trim()) return 'Enter the reviewing professional and their decision.';
+      const request = db.care.requests.find(r => r.id === id && r.status === 'pending');
+      if (!request) return 'This request is no longer awaiting review.';
+      update(d => ({ ...d, care: { ...d.care, requests: d.care.requests.map(r => r.id === id ? { ...r, status: approved ? 'approved' : 'rejected', professional: professional.trim(), decision: decision.trim() } : r) }, notices: notifyAll(d, request.seniorId, 'Professional review recorded', `${professional}: ${decision} · demo decision, not clinical approval`) }));
+      return null;
+    },
+    saveDishNutrition: (id, nutrition) => {
+      if (me?.role !== 'admin') return 'Only administrators can manage demo menus.';
+      if (!validNutrition(nutrition)) return 'Enter positive calories and non-negative carbs and protein.';
+      update(d => ({ ...d, dishes: d.dishes.map(dish => dish.id === id ? { ...dish, nutrition } : dish) }));
+      return null;
+    },
     completeCloudRegistration: async (p) => {
       if (!pendingCloud) return "Please verify your email first.";
       if (p.role !== "senior" && p.role !== "family") return "Only Senior or Family accounts can be registered.";
@@ -171,7 +226,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     deleteHealthData: () => {
       if (me?.role !== "senior") return;
-      update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b) }));
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b), care: { ...d.care, requests: d.care.requests.filter(r => r.seniorId !== me.id), completions: d.care.completions.filter(c => c.seniorId !== me.id) } }));
     },
     linkSenior: (phone) => {
       if (me?.role !== "family") return "Only family accounts can link a senior.";
@@ -198,16 +253,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (new Date(b.when) <= new Date()) throw new Error("Please select a future time.");
       if (b.type === "fitness" && db.bookings.some((existing) => existing.type === "fitness" && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
       const sid = senior.id;
+      const subscription = b.subscriptionId ? db.care.subscriptions.find(s => s.id === b.subscriptionId && s.seniorId === sid && hasActiveSubscription(s) && s.remaining > 0) : undefined;
+      if (b.subscriptionId && (!subscription || b.type !== 'fitness' || db.care.plans.find(p => p.id === subscription.planId)?.coachId !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
       const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: "UPI" + Math.floor(1e6 + Math.random() * 9e6) };
       const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
-      update((d) => ({ ...d, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ₹${b.amount} paid via demo UPI`) }));
+      update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via demo UPI`}`) }));
       return booking;
     },
     setStatus: (id, s) => update((d) => {
       const b = d.bookings.find((x) => x.id === id);
       if (!b || !canAccessBooking(me, b) || !canTransition(b, s)) return d;
       const label = { confirmed: "Confirmed", in_progress: "Being prepared", out_for_delivery: "Out for delivery", completed: "Completed", cancelled: "Cancelled", pending_review: "Pharmacy reviewing" }[s];
-      return { ...d, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, `Update from ${b.partnerName}`) };
+      return { ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(sub => s === 'cancelled' && b.subscriptionId === sub.id && hasActiveSubscription(sub) ? { ...sub, remaining: Math.min(EXERCISE_SUBSCRIPTION.sessions, sub.remaining + 1) } : sub) }, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, `Update from ${b.partnerName}`) };
     }),
     review: (id, rating, text) => update((d) => ({ ...d, bookings: d.bookings.map((x) => (x.id === id && x.status === "completed" && !x.review && me?.role !== "admin" && canAccessBooking(me, x) && Number.isInteger(rating) && rating >= 1 && rating <= 5 ? { ...x, review: { rating, text: text.trim() } } : x)) })),
     markRead: () => update((d) => ({ ...d, notices: d.notices.map((n) => (n.userId === d.currentUserId ? { ...n, read: true } : n)) })),

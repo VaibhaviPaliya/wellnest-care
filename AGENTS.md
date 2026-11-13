@@ -11,5 +11,6 @@
 - Email sign-in, profiles and roles live in Lovable Cloud (profiles, user_roles, choose_role RPC that never grants admin); bookings/partners/notices remain in the localStorage mock DB in src/lib/store.tsx until migrated, keyed by the Cloud user id. Why: real OTP needs server-verified identity; full data migration is phased.
 - Enforce role, consent, ownership, scheduling and status-transition rules in the mock store as well as screen guards so every flow uses the same safeguards; this is a test-data prototype, not production authentication.
 - Keep booking lifecycle and availability rules in a browser-safe shared module so user and admin views cannot disagree.
+- Keep care plans, subscription credits, review requests and nutrition validation in the shared mock store and browser-safe care module; no clinical or tracking claims derive from demo state. Why: every screen must enforce the same consent and ownership gates.
 - Use the shared Button care variants for existing large-text controls, and Radix dialogs for focus management and scrollable mobile overlays.
 - Account deletion requires a fresh approval code (emailed for Cloud users, demo code otherwise); Cloud sign-ins are removed via an authenticated server function, and the last admin cannot be deleted. Why: deletion is irreversible and must prove account ownership.

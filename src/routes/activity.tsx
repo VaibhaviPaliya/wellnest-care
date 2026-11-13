@@ -7,6 +7,7 @@ import { PageTitle, Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import type { Booking, Status } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
+import { DemoTracking } from '@/components/CareFeatures';
 
 export const Route = createFileRoute("/activity")({
   head: () => ({
@@ -60,20 +61,21 @@ function BookingCard({ b }: { b: Booking }) {
         <div className="min-w-0 flex-1 basis-48">
           <h2 className="text-xl font-bold">{b.title}</h2>
           <p className="text-muted-foreground">{b.partnerName} · {fmtWhen(b.when)}</p>
-          <p className="text-muted-foreground">₹{b.amount} paid · {b.upiRef} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
+          <p className="text-muted-foreground">{b.subscriptionId ? 'Subscription credit' : `₹${b.amount} paid · ${b.upiRef}`} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
           {b.items?.length ? <p className="mt-1">{b.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</p> : <p className="mt-1">{b.detail}</p>}
         </div>
         <span className="tag">{STATUS_LABEL[b.status]}</span>
       </div>
       {b.videoUrl && b.status !== "cancelled" && <a href={b.videoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-4">Join online class</a>}
       {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-3 inline-block text-primary underline">View prescription: {b.prescription}</a>}
+      <DemoTracking booking={b} />
 
       {b.status !== "cancelled" && (
         <ol className="mt-4 flex items-center gap-1" aria-label="Progress">
           {steps.map((s, i) => (
             <li key={s} className="flex flex-1 flex-col items-center gap-1 text-center text-sm">
               <span className={`h-2.5 w-full rounded-full ${i <= idx ? "bg-success" : "bg-muted"}`} />
-              <span className={i <= idx ? "font-bold" : "text-muted-foreground"}>{STATUS_LABEL[s]}</span>
+              <span className={i <= idx ? "font-bold" : "text-muted-foreground"}>{b.type === 'fitness' && s === 'in_progress' ? 'Session started' : STATUS_LABEL[s]}</span>
             </li>
           ))}
         </ol>
