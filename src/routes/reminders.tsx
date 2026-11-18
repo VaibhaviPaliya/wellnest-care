@@ -49,7 +49,7 @@ function Reminders() {
   const [days, setDays] = useState<number[]>(ALL);
   if (!senior?.consent?.given)
     return (
-      <p className="surface p-6 text-lg">
+      <p className="surface p-5 text-base">
         This senior needs to complete their consent and health profile first.{" "}
         <Link to="/home" className="text-primary underline">
           {t("Home")}
@@ -79,7 +79,7 @@ function Reminders() {
       />
       <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
         <section className="surface h-fit p-5">
-          <h2 className="flex items-center gap-2 text-2xl font-bold">
+          <h2 className="flex items-center gap-2 text-lg font-bold">
             <AlarmClock className="h-6 w-6 text-accent" />
             {t("Add a reminder")}
           </h2>
@@ -171,9 +171,9 @@ function Reminders() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-2xl font-bold">{t("Your reminders")}</h2>
+          <h2 className="mb-3 text-lg font-bold">{t("Your reminders")}</h2>
           {list.length === 0 ? (
-            <p className="surface p-6 text-lg text-muted-foreground">{t("No reminders yet.")}</p>
+            <p className="surface p-5 text-base text-muted-foreground">{t("No reminders yet.")}</p>
           ) : (
             <ul className="space-y-3">
               {list.map((r) => (
@@ -181,9 +181,9 @@ function Reminders() {
                   key={r.id}
                   className={`surface flex flex-wrap items-center gap-3 p-4 ${r.active ? "" : "opacity-60"}`}
                 >
-                  <span className="font-display text-2xl font-bold">{r.time}</span>
+                  <span className="font-display text-base font-semibold">{r.time}</span>
                   <div className="min-w-0 flex-1 basis-40">
-                    <p className="text-lg font-bold">{r.label}</p>
+                    <p className="text-base font-bold">{r.label}</p>
                     <p className="text-muted-foreground">
                       {t(KINDS.find(([k]) => k === r.kind)?.[1] ?? "Other")} · {dayText(r.days)}
                     </p>

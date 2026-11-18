@@ -39,16 +39,16 @@ function Onboarding() {
       {!consented ? (
         <div className="surface mt-3 p-6 md:p-8">
           <ShieldCheck className="h-12 w-12 text-primary" />
-          <h1 className="mt-3 text-3xl font-bold">Your consent comes first</h1>
-          <p className="mt-3 text-lg">Before we store any health information, we need your permission under India’s <strong>Digital Personal Data Protection (DPDP) Act, 2023</strong>.</p>
-          <ul className="mt-4 list-disc space-y-2 pl-6 text-lg">
+          <h1 className="mt-3 text-2xl font-bold">Your consent comes first</h1>
+          <p className="mt-3 text-base">Before we store any health information, we need your permission under India’s <strong>Digital Personal Data Protection (DPDP) Act, 2023</strong>.</p>
+          <ul className="mt-4 list-disc space-y-2 pl-6 text-base">
             <li>We use your health conditions only to suggest suitable meals and fitness sessions.</li>
             <li>Only you and family members <em>you</em> link can see your bookings.</li>
             <li>Partners see only what they need to deliver a service.</li>
             <li>You can <strong>delete your health data anytime</strong> from your Profile.</li>
           </ul>
           {([["a", "I agree to WellNest storing my health information for the purposes above."], ["b", "I understand I can withdraw consent and delete my data at any time."]] as const).map(([k, t]) => (
-            <label key={k} className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-lg">
+            <label key={k} className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-base">
               <input type="checkbox" className="mt-1 h-6 w-6 accent-[var(--primary)]" checked={agree[k]} onChange={(e) => setAgree({ ...agree, [k]: e.target.checked })} />
               {t}
             </label>
@@ -58,8 +58,8 @@ function Onboarding() {
         </div>
       ) : (
         <div className="surface mt-3 p-6 md:p-8">
-          <h1 className="text-3xl font-bold">Your health profile</h1>
-          <p className="mt-2 text-lg text-muted-foreground">This helps us show only meals and sessions that are right for you.</p>
+          <h1 className="text-2xl font-bold">Your health profile</h1>
+          <p className="mt-2 text-base text-muted-foreground">This helps us show only meals and sessions that are right for you.</p>
           <HealthForm initial={me.health} initialAddress={me.address} submitLabel="Save & go to home" onSubmit={(h, addr) => { saveHealth(h, addr); nav({ to: "/home" }); }} />
           <Button variant="care" size="care" className="mt-4 text-destructive underline" onClick={() => { deleteHealthData(); setAgree({ a: false, b: false }); }}>Withdraw consent</Button>
         </div>

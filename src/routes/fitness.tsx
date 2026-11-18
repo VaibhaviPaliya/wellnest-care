@@ -71,12 +71,12 @@ function Fitness() {
             <div className="flex items-start justify-between gap-2">
               <PartnerAvatar kind="coach" id={c.id} name={c.name} size={64} />
               <div className="min-w-0 flex-1">
-                <h2 className="flex items-center gap-2 text-2xl font-bold">{c.name}<BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" /></h2>
+                <h2 className="flex items-center gap-2 text-lg font-bold">{c.name}<BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" /></h2>
                 <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {coachRating(c.id, db.bookings, c.rating).rating} · {coachRating(c.id, db.bookings, c.rating).count || 'Sample'} reviews</p>
               </div>
-              <p className="font-display text-2xl font-bold">₹{c.price}</p>
+              <p className="font-display text-base font-semibold">₹{c.price}</p>
             </div>
-            <p className="mt-2 text-lg">{c.bio}</p>
+            <p className="mt-2 text-base">{c.bio}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {c.types.map((t) => <span key={t} className="tag capitalize">{t}</span>)}
               <span className="tag capitalize">{c.level}</span>
@@ -85,13 +85,13 @@ function Fitness() {
             <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={() => choose(c)}>Choose a slot</Button>
           </li>
         ))}
-        {list.length === 0 && <p className="surface p-6 text-lg">No coaches match. Try “Any”.</p>}
+        {list.length === 0 && <p className="surface p-5 text-base">No coaches match. Try “Any”.</p>}
       </ul>
 
       {sel && !pay && (
         <Dialog open onOpenChange={(open) => { if (!open) setSel(null); }}>
           <DialogContent>
-            <DialogTitle className="text-2xl font-bold">Book with {sel.coach.name}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">Book with {sel.coach.name}</DialogTitle>
             <DialogDescription>Available times in your local time zone.</DialogDescription>
             <p className="mb-2 mt-4 font-bold">Session</p>
             <div className="flex flex-wrap gap-2">{sel.coach.types.map((t) => <Button variant="care" size="care" key={t} className="chip capitalize" aria-pressed={sel.kind === t} onClick={() => setSel({ ...sel, kind: t })}>{t}</Button>)}</div>

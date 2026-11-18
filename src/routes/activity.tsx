@@ -46,7 +46,7 @@ function Activity() {
       </div>
       <ul className="space-y-4">
         {list.map((b) => <BookingCard key={b.id} b={b} />)}
-        {list.length === 0 && <p className="surface p-6 text-lg text-muted-foreground">{t("Nothing here yet.")}</p>}
+        {list.length === 0 && <p className="surface p-5 text-base text-muted-foreground">{t("Nothing here yet.")}</p>}
       </ul>
     </>
   );
@@ -66,7 +66,7 @@ function BookingCard({ b }: { b: Booking }) {
       <div className="flex flex-wrap items-start gap-3">
         <span className="relative shrink-0"><PartnerAvatar kind={b.type === "fitness" ? "coach" : b.type === "meal" ? "kitchen" : "pharmacy"} id={b.partnerId} name={b.partnerName} size={56} /><Icon className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-card p-0.5 text-primary" aria-hidden /></span>
         <div className="min-w-0 flex-1 basis-48">
-          <h2 className="text-xl font-bold">{b.title}</h2>
+          <h2 className="text-base font-semibold">{b.title}</h2>
           <p className="text-muted-foreground">{b.partnerName} · {fmtWhen(b.when)}</p>
           <p className="text-muted-foreground">{b.subscriptionId ? 'Subscription credit' : `₹${b.amount} paid · ${b.upiRef}`} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
           {b.type === "fitness" && !b.videoUrl && b.status !== "cancelled" && <p className="mt-1 font-bold">{t("Coach arrives {from}–{to}", { from: clock(arrivalWindow(b).from), to: clock(arrivalWindow(b).to) })}</p>}

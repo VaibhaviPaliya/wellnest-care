@@ -178,7 +178,7 @@ export function LangToggle() {
     <div
       role="group"
       aria-label="Language / भाषा"
-      className="flex overflow-hidden rounded-xl border-2"
+      className="flex overflow-hidden rounded-lg border"
     >
       {(["en", "hi"] as const).map((l) => (
         <button
@@ -187,7 +187,7 @@ export function LangToggle() {
           lang={l}
           aria-pressed={lang === l}
           onClick={() => setLang(l)}
-          className={`min-h-11 px-3 text-base font-bold ${lang === l ? "bg-primary text-primary-foreground" : "bg-card"}`}
+          className={`min-h-10 px-3 text-sm font-semibold transition-colors ${lang === l ? "bg-foreground text-background" : "bg-card text-muted-foreground hover:text-foreground"}`}
         >
           {l === "en" ? "EN" : "हिंदी"}
         </button>

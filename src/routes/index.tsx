@@ -116,7 +116,7 @@ function Login() {
       <div className="flex flex-col justify-center px-6 py-10 md:px-14">
         <Logo />
         <h1 className="mt-10 text-4xl font-bold leading-tight md:text-5xl">Care that comes home.</h1>
-        <p className="mt-3 text-lg text-muted-foreground">Gentle fitness, meals that suit your health, and medicines at your door — with your family kept informed.</p>
+        <p className="mt-3 text-base text-muted-foreground">Gentle fitness, meals that suit your health, and medicines at your door — with your family kept informed.</p>
 
         <div className="surface mt-8 p-6">
           {step === "id" && (
@@ -127,14 +127,14 @@ function Login() {
           )}
           {step === "id" && (
             <>
-              <p className="mb-2 text-lg font-bold">{mode === "register" ? "Create your account with" : "Sign in with"}</p>
+              <p className="mb-2 text-base font-bold">{mode === "register" ? "Create your account with" : "Sign in with"}</p>
               <div className="mb-4 flex gap-2">
                 <Button variant="care" size="care" className="chip" aria-pressed={method === "phone"} onClick={() => setMethod("phone")}>Mobile number</Button>
                 <Button variant="care" size="care" className="chip" aria-pressed={method === "email"} onClick={() => setMethod("email")}>Email</Button>
               </div>
               {method === "phone" ? (
                 <>
-                  <label htmlFor="phone" className="mb-2 block text-lg font-bold">Mobile number</label>
+                  <label htmlFor="phone" className="mb-2 block text-base font-bold">Mobile number</label>
                   <div className="flex gap-2">
                     <span className="field flex w-auto items-center font-bold">+91</span>
                     <input id="phone" inputMode="numeric" maxLength={10} className="field text-xl tracking-wider" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
@@ -142,7 +142,7 @@ function Login() {
                 </>
               ) : (
                 <>
-                  <label htmlFor="email" className="mb-2 block text-lg font-bold">Email address</label>
+                  <label htmlFor="email" className="mb-2 block text-base font-bold">Email address</label>
                   <input id="email" type="email" className="field text-xl" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </>
               )}
@@ -160,16 +160,16 @@ function Login() {
           )}
           {step === "otp" && (
             <>
-              <label htmlFor="otp" className="mb-2 block text-lg font-bold">Enter the 6-digit code sent to {target}</label>
+              <label htmlFor="otp" className="mb-2 block text-base font-bold">Enter the 6-digit code sent to {target}</label>
               <input id="otp" inputMode="numeric" maxLength={8} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
               <p className="mt-2 text-muted-foreground">{method === "email" ? "Enter the code from your email. If it shows a sign-in link instead, just tap that link." : <>Demo code: <strong>{DEMO_OTP}</strong></>}</p>
               <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length < 6 || busy}>Verify & continue</Button>
-              <Button variant="care" size="care" className="mt-3 w-full font-semibold text-primary underline" onClick={() => { setStep("id"); setOtp(""); }}>Change {method === "phone" ? "number" : "email"}</Button>
+              <Button variant="care" size="care" className="mt-3 w-full text-sm font-medium text-primary underline-offset-4 hover:underline" onClick={() => { setStep("id"); setOtp(""); }}>Change {method === "phone" ? "number" : "email"}</Button>
             </>
           )}
           {step === "new" && (
             <>
-              <h2 className="text-2xl font-bold">Welcome! Tell us about you</h2>
+              <h2 className="text-lg font-bold">Welcome! Tell us about you</h2>
               <p className="text-muted-foreground">Verified: {target}</p>
               <label htmlFor="name" className="mb-2 mt-4 block font-bold">Full name</label>
               <input id="name" className="field" value={name} onChange={(e) => setName(e.target.value)} />
@@ -182,8 +182,8 @@ function Login() {
               <p className="mb-2 mt-4 font-bold">I am a…</p>
               <div className="grid gap-2">
                 {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users]] as const).map(([r, t, s, Icon]) => (
-                  <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
-                    <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-lg">{t}</strong><span className="text-muted-foreground">{s}</span></span>
+                  <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
+                    <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-base">{t}</strong><span className="text-muted-foreground">{s}</span></span>
                   </Button>
                 ))}
               </div>
@@ -196,10 +196,10 @@ function Login() {
           {step === "health" && (
             <>
               <p className="font-bold text-accent">Last step</p>
-              <h2 className="text-2xl font-bold">Your health profile</h2>
+              <h2 className="text-lg font-bold">Your health profile</h2>
               <p className="text-muted-foreground">We use this only to suggest meals and sessions that suit you.</p>
               <HealthForm submitLabel={busy ? "Creating account…" : "Create account"} onSubmit={(h, addr) => finish({ h, addr })} />
-              <Button variant="care" size="care" className="mt-3 w-full font-semibold text-primary underline" onClick={() => setStep("terms")}>Back</Button>
+              <Button variant="care" size="care" className="mt-3 w-full text-sm font-medium text-primary underline-offset-4 hover:underline" onClick={() => setStep("terms")}>Back</Button>
             </>
           )}
         </div>

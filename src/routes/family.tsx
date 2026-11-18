@@ -40,18 +40,18 @@ function Family() {
       <ul className="grid gap-4 md:grid-cols-2">
         {linked.map((s) => (
           <li key={s.id} className={`surface p-5 ${senior?.id === s.id ? "border-primary" : ""}`}>
-            <div className="flex items-center gap-3"><UserRound className="h-10 w-10 text-primary" /><div><h2 className="text-xl font-bold">{s.name}</h2><p className="text-muted-foreground">+91 {s.phone}</p></div></div>
+            <div className="flex items-center gap-3"><UserRound className="h-10 w-10 text-primary" /><div><h2 className="text-base font-semibold">{s.name}</h2><p className="text-muted-foreground">+91 {s.phone}</p></div></div>
             <div className="mt-3 flex flex-wrap gap-1">{s.health?.conditions.map((c) => <span key={c} className="tag">{CONDITION_LABEL[c]}</span>) ?? <span className="text-muted-foreground">Health data not shared</span>}</div>
             {senior?.id === s.id ? <p className="mt-3 font-bold text-success">Currently managing</p> : <Button variant="care" size="care" className="btn btn-outline mt-3" onClick={() => setActiveSenior(s.id)}>Manage {s.name.split(" ")[0]}</Button>}
           </li>
         ))}
       </ul>
       {senior?.consent?.given && <section className="mt-6 max-w-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-2xl font-bold">{senior.name.split(" ")[0]}’s health profile</h2><Button variant="care" size="care" className="btn btn-outline" onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit profile"}</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{senior.name.split(" ")[0]}’s health profile</h2><Button variant="care" size="care" className="btn btn-outline" onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit profile"}</Button></div>
         {editing && <HealthForm key={senior.id} initial={senior.health} initialAddress={senior.address} submitLabel="Save profile" onSubmit={(health, address) => { saveHealth(health, address); setEditing(false); toast.success("Profile updated for your senior."); }} />}
       </section>}
       <div className="surface mt-6 max-w-xl p-6">
-        <h2 className="flex items-center gap-2 text-2xl font-bold"><Link2 className="h-6 w-6" />Link a senior</h2>
+        <h2 className="flex items-center gap-2 text-lg font-bold"><Link2 className="h-6 w-6" />Link a senior</h2>
         <p className="mt-1 text-muted-foreground">Demo approval uses code {DEMO_OTP}; no SMS is sent. Try 9876500001.</p>
         <label htmlFor="sp" className="mb-1 mt-4 block font-bold">Senior’s mobile number</label>
         <input id="sp" className="field" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "")); setSent(false); setOtp(""); }} />

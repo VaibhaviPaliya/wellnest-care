@@ -48,19 +48,19 @@ function Profile() {
       <div className="surface mb-6 p-6"><DetailsForm me={me} /></div>
       <div className="mb-6"><SyncSettings /></div>
       <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-        <div className="surface p-6">
-          <h2 className="text-2xl font-bold">Health profile</h2>
+        <div className="surface p-5">
+          <h2 className="text-lg font-bold">Health profile</h2>
           <HealthForm initial={me.health} initialAddress={me.address} submitLabel="Save changes" onSubmit={(h, a) => { saveHealth(h, a); toast.success("Saved. Meal suggestions updated."); }} />
         </div>
         <div className="space-y-6">
           <div className="surface p-5">
-            <h2 className="flex items-center gap-2 text-xl font-bold"><ShieldCheck className="h-6 w-6 text-success" />Consent</h2>
+            <h2 className="flex items-center gap-2 text-base font-semibold"><ShieldCheck className="h-6 w-6 text-success" />Consent</h2>
             <p className="mt-1">Given on {me.consent ? fmtWhen(me.consent.at) : "—"}</p>
             <p className="mt-3 font-bold">Family who can see your bookings</p>
             <ul className="mt-1 space-y-3">{family.length ? family.map((f) => <li key={f.id}><p>{f.name}</p>{revoke === f.id ? <div className="flex flex-wrap gap-2"><Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setRevoke(null)}>Keep access</Button><Button variant="care" size="care" className="btn btn-danger min-h-11 text-base" onClick={() => { unlinkFamily(f.id); setRevoke(null); toast.success("Family access removed."); }}>Confirm removal</Button></div> : <Button variant="care" size="care" className="text-destructive underline" onClick={() => setRevoke(f.id)}>Remove access</Button>}</li>) : <li>No one yet</li>}</ul>
           </div>
           <div className="surface border-destructive p-5">
-            <h2 className="text-xl font-bold">Delete health data</h2>
+            <h2 className="text-base font-semibold">Delete health data</h2>
             <p className="mt-1">This erases your conditions, allergies, diet, mobility and prescription attachments, and withdraws consent. Booking history and your delivery address stay.</p>
             {confirm ? (
               <div className="mt-3 flex gap-2">
@@ -113,7 +113,7 @@ function DeleteAccount({ me }: { me: User }) {
   };
   return (
     <div className="surface mt-6 max-w-2xl border-destructive p-6">
-      <h2 className="text-xl font-bold">Delete my account</h2>
+      <h2 className="text-base font-semibold">Delete my account</h2>
       <p className="mt-1">This permanently removes your account{me.role === "senior" ? ", health data, records, bookings and family links" : " and your alerts"}. It cannot be undone.</p>
       {step === "idle" ? (
         <Button variant="care" size="care" className="btn btn-danger mt-3 w-full sm:w-auto" disabled={busy} onClick={start}><Trash2 className="h-5 w-5" />Delete my account</Button>
@@ -144,7 +144,7 @@ function DetailsForm({ me }: { me: User }) {
   );
   return (
     <>
-      <h2 className="text-2xl font-bold">Profile details</h2>
+      <h2 className="text-lg font-bold">Profile details</h2>
       <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : "Administrator"}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {field("name", "Full name")}

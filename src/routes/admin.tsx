@@ -43,11 +43,11 @@ function Admin() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-3xl font-bold md:text-4xl">Admin dashboard</h1>
+        <h1 className="text-2xl font-bold md:text-3xl">Admin dashboard</h1>
         {reset ? <div className="flex flex-wrap gap-2"><Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setReset(false)}>Keep data</Button><Button variant="care" size="care" className="btn btn-danger min-h-11 text-base" onClick={() => { resetDemo(); toast.success("Demo data reset. Please sign in again."); }}>Confirm reset</Button></div> : <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setReset(true)}>Reset demo data</Button>}
       </div>
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-3xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
+        {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-2xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
       </div>
       <div className="my-6 flex flex-wrap gap-2">
         {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
@@ -60,16 +60,16 @@ function Admin() {
              ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
              ["delivery", "delivery", "Delivery partners", "Only verified delivery partners are assigned to meal and medicine orders. Unverifying someone moves their open orders to a verified partner.", db.delivery.map((x) => ({ id: x.id, name: x.name, sub: `${x.vehicle} · ${x.area} · ${((n) => `${n} open order${n === 1 ? "" : "s"}`)(db.bookings.filter((b) => b.deliveryId === x.id && !["completed", "cancelled"].includes(b.status)).length)}`, verified: x.verified, type: null, fallback: 0, photo: x.photo }))]] as const).map(([kind, pkind, title, note, rows]) => (
             <section key={kind} className="surface p-5">
-              <h2 className="text-2xl font-bold">{title}</h2>
+              <h2 className="text-lg font-bold">{title}</h2>
               <p className="text-muted-foreground">{note}</p>
-              <ul className="mt-3 divide-y-2">
+              <ul className="mt-3 divide-y">
                 {rows.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
                       <PartnerAvatar kind={pkind} id={r.id} name={r.name} size={52} />
                       <div className="min-w-0"><p className="font-bold">{r.name}</p><p className="text-sm text-muted-foreground">{r.sub}</p>{r.type && <RatingBadge type={r.type} partnerId={r.id} fallback={r.fallback} />}
                         <div className="mt-1 flex flex-wrap gap-3 text-sm">
-                          <label className="cursor-pointer font-semibold text-primary underline">{r.photo ? "Change photo" : "Upload photo"}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) resizePhoto(f).then((url) => { const err = setPartnerPhoto(pkind, r.id, url); if (err) toast.error(err); else toast.success(`Photo saved for ${r.name}.`); }).catch((err: Error) => toast.error(err.message)); }} /></label>
+                          <label className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline">{r.photo ? "Change photo" : "Upload photo"}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) resizePhoto(f).then((url) => { const err = setPartnerPhoto(pkind, r.id, url); if (err) toast.error(err); else toast.success(`Photo saved for ${r.name}.`); }).catch((err: Error) => toast.error(err.message)); }} /></label>
                           {r.photo && <button type="button" className="font-semibold text-destructive underline" onClick={() => setPartnerPhoto(pkind, r.id, undefined)}>Remove photo</button>}
                         </div>
                       </div>
@@ -93,7 +93,7 @@ function Admin() {
       {tab === "dishes" && (
         <div className="surface overflow-x-auto p-5">
           <p className="mb-3 text-muted-foreground">Tap a tag to add or remove it. Seniors only see dishes carrying every tag their conditions require.</p>
-          <ul className="divide-y-2">
+          <ul className="divide-y">
             {db.dishes.map((d) => (
               <li key={d.id} className="py-3">
                 <p className="font-bold">{d.name} <span className="font-normal text-muted-foreground">· {kName(d.kitchenId)} · {d.diet}</span></p>
@@ -112,7 +112,7 @@ function Admin() {
         <div className="surface overflow-x-auto p-2">
           <input aria-label="Search orders" className="field mb-3" placeholder="Search service, senior or partner" value={query} onChange={(e) => setQuery(e.target.value)} />
           <table className="w-full min-w-[720px] text-left">
-            <thead><tr className="border-b-2">{["Service", "Senior", "Booked by", "Partner", "When", "Amount", "Status", "Review"].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b">{["Service", "Senior", "Booked by", "Partner", "When", "Amount", "Status", "Review"].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
             <tbody>
               {db.bookings.filter((b) => [b.title, b.partnerName, uName(b.seniorId)].join(" ").toLowerCase().includes(query.toLowerCase())).map((b) => (
                 <tr key={b.id} className="border-b">

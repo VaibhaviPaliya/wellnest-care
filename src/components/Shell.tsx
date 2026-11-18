@@ -12,9 +12,9 @@ export function Logo() {
   const { t } = useT();
   return (
     <Link to="/" className="flex items-center gap-2">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary font-display text-xl font-bold text-primary-foreground">W</span>
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary font-display text-base font-bold text-primary-foreground">W</span>
       <span className="leading-tight">
-        <span className="block font-display text-xl font-bold">WellNest</span>
+        <span className="block font-display text-base font-bold tracking-tight">WellNest</span>
         <span className="block whitespace-nowrap text-xs text-muted-foreground">{t("Care that comes home")}</span>
       </span>
     </Link>
@@ -48,20 +48,20 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
 
   return (
     <div className="min-h-screen pb-28 lg:pb-10">
-      <header className="sticky top-0 z-30 border-b-2 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Logo />
           <nav className="hidden items-center gap-0.5 lg:flex">
             {links.map((l) => (
-              <Link key={l.to} to={l.to} className="relative flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 font-semibold hover:bg-muted" activeProps={{ className: "bg-secondary" }}>
-                <l.icon className="h-5 w-5" />{t(l.label)}
+              <Link key={l.to} to={l.to} className="relative flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[0.93rem] font-medium text-muted-foreground hover:bg-muted hover:text-foreground" activeProps={{ className: "bg-secondary !text-secondary-foreground" }}>
+                <l.icon className="h-[18px] w-[18px]" />{t(l.label)}
                 {!!l.badge && <span className="rounded-full bg-accent px-2 text-sm text-accent-foreground">{l.badge}</span>}
               </Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
             <LangToggle />
-            <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-11 px-3 text-base" aria-label={t("Log out")}>
+            <Button variant="care" size="care" onClick={() => { logout(); nav({ to: "/" }); }} className="btn btn-outline min-h-10 px-3 text-sm" aria-label={t("Log out")}>
               <LogOut className="h-5 w-5" /><span className="hidden whitespace-nowrap lg:inline">{t("Log out")}</span>
             </Button>
           </div>
@@ -69,10 +69,10 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
       </header>
       {me.role !== "admin" && <ReminderRunner />}
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t-2 bg-card lg:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t bg-card/90 backdrop-blur-md lg:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {links.map((l) => (
-          <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-1 py-3 text-sm font-semibold text-muted-foreground" activeProps={{ className: "text-primary" }}>
-            <l.icon className="h-6 w-6" />{t(l.label)}
+          <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium text-muted-foreground" activeProps={{ className: "text-primary" }}>
+            <l.icon className="h-[22px] w-[22px]" />{t(l.label)}
             {!!l.badge && <span className="absolute right-1/4 top-2 rounded-full bg-accent px-1.5 text-xs text-accent-foreground">{l.badge}</span>}
           </Link>
         ))}
@@ -102,9 +102,9 @@ export function PageTitle({ title, sub, back = true }: { title: string; sub?: st
   const { t } = useT();
   return (
     <div className="mb-6">
-      {back && <Link to="/home" className="mb-2 inline-block font-semibold text-primary underline-offset-4 hover:underline">{t("← Back to home")}</Link>}
-      <h1 className="text-3xl font-bold md:text-4xl">{t(title)}</h1>
-      {sub && <p className="mt-1 text-lg text-muted-foreground">{t(sub)}</p>}
+      {back && <Link to="/home" className="mb-2 inline-block text-sm font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline">{t("← Back to home")}</Link>}
+      <h1 className="text-2xl font-bold md:text-3xl">{t(title)}</h1>
+      {sub && <p className="mt-1 text-muted-foreground">{t(sub)}</p>}
     </div>
   );
 }
@@ -137,15 +137,15 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
         {stage === "done" ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
-            <h2 className="mt-3 text-2xl font-bold">Payment successful</h2>
+            <h2 className="mt-3 text-lg font-bold">Payment successful</h2>
             <p className="mt-1 text-muted-foreground">₹{amount} paid · Family has been notified</p>
             <Button variant="care" size="care" className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</Button>
           </div>
         ) : (
           <>
             <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">UPI Checkout (demo)</p>
-            <h2 className="mt-1 text-2xl font-bold">{title}</h2>
-            <p className="my-4 font-display text-4xl font-bold">₹{amount}</p>
+            <h2 className="mt-1 text-lg font-bold">{title}</h2>
+            <p className="my-4 font-display text-3xl font-bold">₹{amount}</p>
             <div className="mb-4 flex flex-wrap gap-2">
               {["GPay", "PhonePe", "Paytm", "BHIM"].map((a) => (
                 <Button variant="care" size="care" key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</Button>

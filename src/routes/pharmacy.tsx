@@ -70,10 +70,10 @@ function Pharmacy() {
         <div className="surface p-5">
           {mode === "upload" ? (
             <>
-              <h2 className="text-2xl font-bold">1. Doctor’s prescription</h2>
-              <label className="mt-4 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center hover:border-primary">
+              <h2 className="text-lg font-bold">1. Doctor’s prescription</h2>
+              <label className="mt-4 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed p-8 text-center hover:border-primary">
                 <FileUp className="h-10 w-10 text-primary" />
-                <span className="text-lg font-bold">{reading ? "Reading file…" : file ?? "Tap to upload photo or PDF"}</span>
+                <span className="text-base font-bold">{reading ? "Reading file…" : file ?? "Tap to upload photo or PDF"}</span>
                 <span className="text-muted-foreground">JPG, PNG or PDF · up to 1 MB · test data only</span>
                 <input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" onChange={(e) => upload(e.target)} />
               </label>
@@ -81,15 +81,15 @@ function Pharmacy() {
             </>
           ) : (
             <>
-              <h2 className="text-2xl font-bold">1. Prescribed medicines</h2>
+              <h2 className="text-lg font-bold">1. Prescribed medicines</h2>
               <p className="mt-2 text-muted-foreground">The pharmacy reviews all medicine requests before confirming delivery.</p>
               <ul className="mt-3 space-y-2">
                 {medicines.map((m) => {
                   const on = picked.includes(m.id);
                   return (
                     <li key={m.id}>
-                      <Button variant="care" size="care" onClick={() => setPicked((p) => (on ? p.filter((x) => x !== m.id) : [...p, m.id]))} aria-pressed={on} className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left ${on ? "border-primary bg-secondary" : ""}`}>
-                        <span className={`grid h-7 w-7 place-items-center rounded-md border-2 ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check className="h-5 w-5" />}</span>
+                      <Button variant="care" size="care" onClick={() => setPicked((p) => (on ? p.filter((x) => x !== m.id) : [...p, m.id]))} aria-pressed={on} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${on ? "border-primary bg-secondary" : ""}`}>
+                        <span className={`grid h-7 w-7 place-items-center rounded-md border ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check className="h-5 w-5" />}</span>
                         <span className="flex-1"><strong>{m.name}</strong><span className="block text-sm text-muted-foreground">{m.dose}</span></span>
                         <span className="font-bold">₹{m.price}</span>
                       </Button>
@@ -102,11 +102,11 @@ function Pharmacy() {
         </div>
 
         <div className="surface h-fit p-5">
-          <h2 className="text-2xl font-bold">2. Choose pharmacy</h2>
+          <h2 className="text-lg font-bold">2. Choose pharmacy</h2>
           <ul className="mt-3 space-y-2">
             {pharmacies.map((p) => (
               <li key={p.id}>
-                <Button variant="care" size="care" onClick={() => setPh(p.id)} aria-pressed={ph === p.id} className={`w-full flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left ${ph === p.id ? "border-primary bg-secondary" : ""}`}>
+                <Button variant="care" size="care" onClick={() => setPh(p.id)} aria-pressed={ph === p.id} className={`w-full flex-col items-start gap-0.5 rounded-xl border p-3 text-left ${ph === p.id ? "border-primary bg-secondary" : ""}`}>
                   <span className="flex items-center gap-3"><PartnerAvatar kind="pharmacy" id={p.id} name={p.name} size={44} /><strong className="flex items-center gap-1">{p.name}<BadgeCheck className="h-5 w-5 text-success" aria-label="Verified" /></strong></span>
                   <span className="text-muted-foreground">{p.area} · delivers in ~{p.eta}</span>
                   <RatingBadge type="medicine" partnerId={p.id} className="mt-1 flex" />
@@ -115,12 +115,12 @@ function Pharmacy() {
             ))}
           </ul>
           {pharmacies.length === 0 && <p className="mt-3 text-muted-foreground">No verified pharmacies available.</p>}
-          <h3 className="mt-5 text-xl font-bold">3. Delivery date & time</h3>
+          <h3 className="mt-5 text-base font-semibold">3. Delivery date & time</h3>
           <div className="mt-2 flex flex-wrap gap-2">{[0, 1, 2, 3].map((i) => <Button variant="care" size="care" key={i} className="chip" aria-pressed={day === i} onClick={() => { setDay(i); setSlot(["09:00", "13:00", "18:00"].find((s) => sessionDate(i, s) > new Date()) ?? "09:00"); }}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : sessionDate(i, "09:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</Button>)}</div>
           <div className="mt-2 flex flex-wrap gap-2">{["09:00", "13:00", "18:00"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} disabled={sessionDate(day, s) <= new Date()} onClick={() => setSlot(s)}>{s}</Button>)}</div>
           <p className="mt-4 flex justify-between"><span>Medicines</span><span>₹{subtotal}</span></p>
           <p className="flex justify-between text-muted-foreground"><span>Delivery</span><span>₹20</span></p>
-          <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
+          <p className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>Total</span><span>₹{total}</span></p>
           <Button variant="care" size="care" className="btn btn-accent mt-4 w-full" disabled={!can} onClick={() => setPay(true)}>Send to pharmacy & pay</Button>
         </div>
       </div>

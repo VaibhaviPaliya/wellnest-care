@@ -36,7 +36,7 @@ function Meals() {
   const [source, setSource] = useState<'all' | 'dabba' | 'restaurant'>('all');
   const [sort, setSort] = useState<'default' | 'calories'>('default');
   const h = senior?.health;
-  if (!h || !senior?.consent?.given) return <p className="surface p-6 text-lg">This senior needs to complete their consent and health profile first. <Link to="/home" className="text-primary underline">Go home</Link></p>;
+  if (!h || !senior?.consent?.given) return <p className="surface p-5 text-base">This senior needs to complete their consent and health profile first. <Link to="/home" className="text-primary underline">Go home</Link></p>;
 
   const kitchens = db.kitchens.filter((k) => k.verified);
   const target = h.metrics ? calorieTarget(h.metrics) : null;
@@ -70,7 +70,7 @@ function Meals() {
           {dishes.map((d) => (
             <li key={d.id} className="surface flex flex-col p-5">
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-muted-foreground"><span className="flex items-center gap-1.5"><PartnerAvatar kind="kitchen" id={d.kitchenId} name={kName(d.kitchenId)} size={28} /><BadgeCheck className="h-4 w-4 text-success" aria-label="Verified" />{kName(d.kitchenId)}</span><RatingBadge type="meal" partnerId={d.kitchenId} /></p>
-              <h2 className="mt-1 text-xl font-bold">{d.name}</h2>
+              <h2 className="mt-1 text-base font-semibold">{d.name}</h2>
               <p className="text-muted-foreground">{d.desc}</p>
               <p className="mt-2 text-sm font-bold">{d.nutrition ? `${d.nutrition.calories} kcal · ${d.nutrition.carbs} g carbs · ${d.nutrition.protein} g protein / serving` : 'Nutrition per serving awaiting kitchen data'}</p>
               <div className="mt-2 flex flex-wrap gap-1">{d.tags.map((t) => <span key={t} className="tag">{TAG_LABEL[t]}</span>)}</div>
@@ -79,29 +79,29 @@ function Meals() {
                 <ul className="mt-1 list-disc pl-5">{whyItSuits(d, h).map((r) => <li key={r}>{r}</li>)}</ul>
               </div>
               <div className="mt-4 flex flex-1 items-end justify-between">
-                <span className="font-display text-2xl font-bold">₹{d.price}</span>
+                <span className="font-display text-base font-semibold">₹{d.price}</span>
                 {cart[d.id] ? (
                   <div className="flex items-center gap-2">
                     <Button variant="care" size="care" className="btn btn-outline min-h-11 px-3" aria-label="Remove one" onClick={() => add(d.id, -1)}><Minus className="h-5 w-5" /></Button>
-                    <span className="w-6 text-center text-xl font-bold">{cart[d.id]}</span>
+                    <span className="w-6 text-center text-base font-semibold">{cart[d.id]}</span>
                     <Button variant="care" size="care" className="btn btn-primary min-h-11 px-3" aria-label="Add one" onClick={() => add(d.id, 1)}><Plus className="h-5 w-5" /></Button>
                   </div>
                 ) : <Button variant="care" size="care" className="btn btn-primary" onClick={() => add(d.id, 1)}>Add</Button>}
               </div>
             </li>
           ))}
-          {dishes.length === 0 && <p className="surface p-6 text-lg sm:col-span-2">No dishes match this health profile right now.</p>}
+          {dishes.length === 0 && <p className="surface p-5 text-base sm:col-span-2">No dishes match this health profile right now.</p>}
         </ul>
 
         <aside className="surface h-fit p-5 lg:sticky lg:top-24">
-          <h2 className="text-2xl font-bold">Your order</h2>
+          <h2 className="text-lg font-bold">Your order</h2>
           {items.length === 0 ? <p className="mt-2 text-muted-foreground">Add dishes to begin.</p> : (
             <>
               <p className="mt-1 text-muted-foreground">{kName(kitchenIds[0])}</p>
               <p className="mt-2 font-bold">{items.every(i => i.d.nutrition) ? `${items.reduce((n,i) => n + (i.d.nutrition?.calories ?? 0) * i.qty, 0)} kcal · ${items.reduce((n,i) => n + (i.d.nutrition?.carbs ?? 0) * i.qty, 0)} g carbs · ${items.reduce((n,i) => n + (i.d.nutrition?.protein ?? 0) * i.qty, 0)} g protein` : 'Nutrition total unavailable: some servings have no data'}</p>
               <ul className="mt-3 space-y-2">{items.map((i) => <li key={i.d.id} className="flex justify-between gap-2"><span>{i.qty} × {i.d.name}</span><span className="font-bold">₹{i.d.price * i.qty}</span></li>)}</ul>
               <p className="mt-2 flex justify-between text-muted-foreground"><span>Delivery</span><span>₹30</span></p>
-              <p className="mt-2 flex justify-between border-t-2 pt-2 text-xl font-bold"><span>Total</span><span>₹{total}</span></p>
+              <p className="mt-2 flex justify-between border-t pt-2 text-base font-semibold"><span>Total</span><span>₹{total}</span></p>
               <p className="mb-2 mt-4 font-bold">Deliver at</p>
               <p className="mb-2 text-muted-foreground">{(() => { const d = new Date(); const [hour, minute] = slot.split(":").map(Number); d.setHours(hour, minute, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" }); })()}</p>
               <div className="flex flex-wrap gap-2">{["08:30", "13:00", "19:30"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>{s === "08:30" ? "Breakfast" : s === "13:00" ? "Lunch" : "Dinner"} {s}</Button>)}</div>
