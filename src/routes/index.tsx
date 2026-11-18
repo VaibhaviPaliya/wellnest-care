@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
 import { HealthForm } from "@/components/HealthForm";
 import { TermsConsent } from "@/components/TermsConsent";
-import hero from "@/assets/hero.jpg";
+import { HeroShowcase } from "@/components/HeroShowcase";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -111,9 +111,11 @@ function Login() {
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       <div className="relative hidden md:block">
-        <img src={hero} alt="A grandmother doing gentle chair yoga at home" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="sticky top-0 h-screen"><HeroShowcase /></div>
       </div>
-      <div className="flex flex-col justify-center px-6 py-10 md:px-14">
+      <div className="flex flex-col">
+      <div className="md:hidden"><HeroShowcase compact /></div>
+      <div className="flex flex-1 flex-col justify-center px-6 py-10 md:px-14">
         <Logo />
         <h1 className="mt-10 text-4xl font-bold leading-tight md:text-5xl">Care that comes home.</h1>
         <p className="mt-3 text-base text-muted-foreground">Gentle fitness, meals that suit your health, and medicines at your door — with your family kept informed.</p>
@@ -203,6 +205,7 @@ function Login() {
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

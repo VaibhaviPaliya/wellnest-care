@@ -144,6 +144,17 @@
 }
 @utility tag { display: inline-flex; align-items: center; padding: .1rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 600; letter-spacing: .01em; background: var(--muted); color: var(--muted-foreground); }
 
+/* Sign-in page showcase */
+@utility hero-gradient { background: radial-gradient(90% 70% at 100% 100%, oklch(0.7 0.14 40 / 0.9) 0%, transparent 70%), linear-gradient(160deg, oklch(0.46 0.09 192) 0%, oklch(0.45 0.1 215) 45%, oklch(0.47 0.12 265) 100%); }
+@utility hero-blob { position: absolute; border-radius: 999px; filter: blur(60px); animation: hero-drift 14s ease-in-out infinite alternate; pointer-events: none; }
+@utility hero-float { animation: hero-float 6s ease-in-out infinite; }
+@utility hero-fade { animation: hero-fade .5s ease-out both; }
+@utility hero-pop { animation: hero-pop .55s .35s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes hero-drift { to { transform: translate(40px, 30px) scale(1.15); } }
+@keyframes hero-float { 50% { transform: translateY(-8px); } }
+@keyframes hero-fade { from { opacity: 0; transform: translateY(6px); } }
+@keyframes hero-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
