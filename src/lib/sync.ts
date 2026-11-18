@@ -1,3 +1,4 @@
+/** @deprecated Two-phone room sync, replaced by Lovable Cloud tables (src/lib/cloud.ts). Kept for its tests; no longer used by the app. */
 import {
   useCallback,
   useEffect,

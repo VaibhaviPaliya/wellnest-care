@@ -1,11 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
   type Booking, type DeliveryPartner, type PartnerKind, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails,
 } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
-import { sharedChanged, useDemoSync, type SyncStatus } from './sync';
+import { cloudMessage, loadCloud, planWrites, runOp, watchCloud, type Op, type Shared } from './cloud';
+import { demoPhoneSignIn } from './cloud.functions';
+import { toast } from 'sonner';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
 export interface DB {
@@ -13,7 +15,7 @@ export interface DB {
   bookings: Booking[]; notices: Notice[]; currentUserId: string | null; activeSeniorId: string | null;
   care: CareData;
   delivery: DeliveryPartner[];
-  /** Last local change (ms). Used by demo cross-device sync; 0 = untouched seed data. */
+  /** Last local change (ms). */
   updatedAt: number;
 }
 const KEY = "wellnest-db-v1";
@@ -37,7 +39,7 @@ interface Ctx {
   giveConsent: () => void;
   saveHealth: (h: HealthProfile, address?: string) => void;
   deleteHealthData: () => void;
-  linkSenior: (phone: string) => string | null;
+  linkSenior: (phone: string) => Promise<string | null>;
   setActiveSenior: (id: string) => void;
   unlinkFamily: (id: string) => void;
   createBooking: (b: Omit<Booking, "id" | "createdAt" | "status" | "seniorId" | "bookedBy" | "upiRef">) => Booking;
@@ -47,7 +49,10 @@ interface Ctx {
   toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies" | "delivery", id: string) => void;
   /** Admin: set or clear a partner photo (small image data URL). */
   setPartnerPhoto: (kind: PartnerKind, id: string, photo: string | undefined) => string | null;
-  sync: SyncStatus;
+  /** Signed in to Lovable Cloud: data is loaded from and saved to Cloud tables (row-level security). */
+  cloud: boolean;
+  /** Mobile sign-in: checks the demo code on the server and starts a Cloud session. */
+  phoneSignIn: (phone: string, code: string) => Promise<string | null>;
   toggleDishTag: (dishId: string, tag: DietTag) => void;
   resetDemo: () => void;
   saveExercisePlan: (plan: ExercisePlan) => string | null;
@@ -75,7 +80,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const restore = (raw: string) => {
       const saved = JSON.parse(raw) as DB;
       if (!Array.isArray(saved.users) || !Array.isArray(saved.bookings) || !Array.isArray(saved.notices) || !Array.isArray(saved.coaches) || !Array.isArray(saved.kitchens) || !Array.isArray(saved.dishes) || !Array.isArray(saved.pharmacies)) return;
-      setDb({ ...fresh(), ...saved, care: { ...freshCare(), ...saved.care } });
+      // Sign-ins are Lovable Cloud sessions now, so a sign-in saved in this browser is not restored.
+      setDb({ ...fresh(), ...saved, care: { ...freshCare(), ...saved.care }, currentUserId: null, activeSeniorId: null });
     };
     try { const raw = localStorage.getItem(KEY); if (raw) restore(raw); } catch { /* use fresh demo */ }
     setReady(true);
@@ -84,50 +90,115 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
   const [pendingCloud, setPendingCloud] = useState<{ id: string; email: string } | null>(null);
+  // ---- Lovable Cloud mode ----
+  const [cloudUserId, setCloudUserId] = useState<string | null>(null);
+  const synced = useRef<DB | null>(null); // last state known to match Cloud
+  const queue = useRef<Op[][]>([]);
+  const busy = useRef(false);
+  const reloadAgain = useRef(false);
+
+  const applyShared = useCallback((id: string, shared: Shared) => {
+    setDb((d) => {
+      const meU = shared.users.find((u) => u.id === id);
+      const linked = meU?.linkedSeniorIds ?? [];
+      const next: DB = { ...d, ...shared, currentUserId: id, activeSeniorId: d.activeSeniorId && linked.includes(d.activeSeniorId) ? d.activeSeniorId : linked[0] ?? null };
+      synced.current = next;
+      return next;
+    });
+  }, []);
+  const reload = useCallback(async () => {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return;
+    if (busy.current) { reloadAgain.current = true; return; }
+    try { applyShared(data.user.id, await loadCloud(supabase)); } catch (e) { toast.error(`Could not load your data: ${cloudMessage(e)}`); }
+  }, [applyShared]);
+  const drain = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    let failed = false;
+    while (queue.current.length) {
+      const ops = queue.current.shift()!;
+      for (const op of ops) {
+        try { await runOp(supabase, op); } catch (e) { failed = true; toast.error(cloudMessage(e)); break; }
+      }
+    }
+    busy.current = false;
+    if (failed || reloadAgain.current) { reloadAgain.current = false; void reload(); }
+  }, [reload]);
+
   const adoptCloudUser = useCallback(async (id: string, email: string) => {
     const [{ data: prof }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
+      supabase.from("profiles").select("id,username").eq("id", id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", id),
     ]);
     const role = roles?.find((r) => r.role === "admin")?.role ?? roles?.[0]?.role;
     if (!role || !prof?.username) { setPendingCloud({ id, email }); return; }
     setPendingCloud(null);
-    setDb((d) => {
-      const prev = d.users.find((u) => u.id === id);
-      const u: User = { ...(prev ?? { linkedSeniorIds: [] }), id, email, role, name: prof.name, username: prof.username ?? undefined, phone: prof.phone ?? "", age: prof.age ?? undefined, city: prof.city ?? undefined } as User;
-      return { ...d, users: prev ? d.users.map((x) => (x.id === id ? u : x)) : [...d.users, u], currentUserId: id, activeSeniorId: u.linkedSeniorIds[0] ?? null };
-    });
-  }, []);
+    try {
+      const shared = await loadCloud(supabase);
+      setCloudUserId(id);
+      applyShared(id, shared);
+    } catch (e) { toast.error(`Could not load your data: ${cloudMessage(e)}`); }
+  }, [applyShared]);
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") { setPendingCloud(null); return; }
+      if (event === "SIGNED_OUT") {
+        setPendingCloud(null);
+        // Leaving Cloud mode: drop everything loaded from Cloud so nothing stays in memory on this device.
+        if (synced.current) { synced.current = null; queue.current = []; setCloudUserId(null); setDb(fresh()); }
+        return;
+      }
       if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
         const u = session.user; setTimeout(() => { void adoptCloudUser(u.id, u.email ?? ""); }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
   }, [adoptCloudUser]);
-  useEffect(() => { if (ready) { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage unavailable */ } } }, [db, ready]);
+  // Save: Cloud when signed in to Cloud (data never kept in browser storage), otherwise this browser's demo store.
+  useEffect(() => {
+    if (!ready) return;
+    if (cloudUserId) {
+      const prev = synced.current;
+      if (!prev || prev === db) return;
+      synced.current = db;
+      const ops = planWrites(prev, db, cloudUserId);
+      if (ops.length) { queue.current.push(ops); void drain(); }
+      return;
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(db)); } catch { /* storage unavailable */ }
+  }, [db, ready, cloudUserId, drain]);
+  // Live updates from other phones and the admin.
+  useEffect(() => {
+    if (!cloudUserId) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const stop = watchCloud(supabase, () => { clearTimeout(t); t = setTimeout(() => { void reload(); }, 500); });
+    return () => { clearTimeout(t); stop(); };
+  }, [cloudUserId, reload]);
 
   const me = db.users.find((u) => u.id === db.currentUserId) ?? null;
   const senior = me?.role === "senior" ? me
     : me?.role === "family" ? db.users.find((u) => u.id === (me.linkedSeniorIds.includes(db.activeSeniorId ?? "") ? db.activeSeniorId : me.linkedSeniorIds[0]) && u.role === "senior") ?? null
     : null;
 
-  // Only changes to shared data (not who is signed in on this device) count as a newer version for sync.
-  const update = useCallback((fn: (d: DB) => DB) => setDb((d) => { const next = fn(d); return next === d || !sharedChanged(d, next) ? next : { ...next, updatedAt: Date.now() }; }), []);
-  const sync = useDemoSync(db, setDb, ready);
+  const update = useCallback((fn: (d: DB) => DB) => setDb((d) => fn(d)), []);
   const patchMe = (fn: (u: User) => User) =>
     update((d) => ({ ...d, users: d.users.map((u) => (u.id === d.currentUserId ? fn(u) : u)) }));
 
   const notifyAll = (d: DB, seniorId: string, title: string, body: string, who?: Notice["who"]): Notice[] => {
     const targets = [seniorId, ...d.users.filter((u) => u.linkedSeniorIds.includes(seniorId)).map((u) => u.id)];
     const at = new Date().toISOString();
-    return [...targets.map((userId) => ({ id: uid("n"), userId, title, body, at, read: false, ...(who ? { who } : {}) })), ...d.notices];
+    return [...targets.map((userId) => ({ id: uid("n"), userId, seniorId, title, body, at, read: false, ...(who ? { who } : {}) })), ...d.notices];
   };
 
   const value: Ctx = useMemo(() => ({
-    ready, db, me, senior, medicines: seedMedicines, pendingCloud, sync,
+    ready, db, me, senior, medicines: seedMedicines, pendingCloud, cloud: !!cloudUserId,
+    phoneSignIn: async (phone, code) => {
+      try {
+        const { tokenHash } = await demoPhoneSignIn({ data: { phone, code } });
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+        return error ? "Could not sign you in. Please try again." : null;
+      } catch (e) { return cloudMessage(e); }
+    },
     saveExercisePlan: (plan) => {
       if (me?.role !== 'admin') return 'Only administrators can manage plans.';
       if (!plan.name.trim() || !db.coaches.some(c => c.id === plan.coachId && c.verified) || plan.days.length !== 7 || new Set(plan.days.map(d => d.day)).size !== 7 || plan.days.some(d => !d.title.trim() || !Number.isFinite(d.minutes) || d.minutes < 0 || d.minutes > 60 || (d.videoUrl && !safeVideoUrl(d.videoUrl)))) return 'Enter seven days, durations of 0–60 minutes, and HTTPS video links.';
@@ -260,6 +331,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     deleteAccount: () => {
       if (!me) return "Please sign in again.";
       if (me.role === "admin" && db.users.filter((u) => u.role === "admin").length < 2) return "You are the only administrator, so this account cannot be deleted.";
+      // Cloud accounts are removed on the server (rows cascade); just sign out here.
+      if (cloudUserId) { void supabase.auth.signOut(); setPendingCloud(null); return null; }
       const id = me.id;
       update((d) => ({ ...d, currentUserId: null, activeSeniorId: null,
         users: d.users.filter((u) => u.id !== id).map((u) => ({ ...u, linkedSeniorIds: u.linkedSeniorIds.filter((x) => x !== id) })),
@@ -279,15 +352,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (me?.role !== "senior") return;
       update((d) => ({ ...d, users: d.users.map((u) => u.id === me.id ? { ...u, health: undefined, consent: undefined } : u), bookings: d.bookings.map((b) => b.seniorId === me.id ? { ...b, prescription: undefined, prescriptionData: undefined } : b), care: { ...d.care, requests: d.care.requests.filter(r => r.seniorId !== me.id), completions: d.care.completions.filter(c => c.seniorId !== me.id), reminders: d.care.reminders.filter(r => r.seniorId !== me.id) } }));
     },
-    linkSenior: (phone) => {
+    linkSenior: async (phone) => {
       if (me?.role !== "family") return "Only family accounts can link a senior.";
+      if (cloudUserId) {
+        const { data: sid, error } = await supabase.rpc("link_senior", { _phone: phone });
+        if (error) return cloudMessage(error);
+        try { applyShared(cloudUserId, await loadCloud(supabase)); } catch (e) { return cloudMessage(e); }
+        setDb((d) => ({ ...d, activeSeniorId: sid }));
+        return null;
+      }
       const s = db.users.find((u) => u.phone === phone && u.role === "senior");
       if (!s) return "No senior account found with that number.";
       if (me?.linkedSeniorIds.includes(s.id)) return "Already linked.";
       update((d) => ({
         ...d, activeSeniorId: s.id,
         users: d.users.map((u) => (u.id === d.currentUserId ? { ...u, linkedSeniorIds: [...u.linkedSeniorIds, s.id] } : u)),
-        notices: [{ id: uid("n"), userId: s.id, title: "Family member linked", body: `${me?.name} can now see your bookings and receive alerts.`, at: new Date().toISOString(), read: false }, ...d.notices],
+        notices: [{ id: uid("n"), userId: s.id, seniorId: s.id, title: "Family member linked", body: `${me?.name} can now see your bookings and receive alerts.`, at: new Date().toISOString(), read: false }, ...d.notices],
       }));
       return null;
     },
@@ -346,9 +426,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     },
     toggleDishTag: (dishId, tag) => { if (me?.role === "admin") update((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === dishId ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x)) })); },
-    resetDemo: () => { if (me?.role === "admin") setDb({ ...fresh(), updatedAt: Date.now() }); },
+    resetDemo: () => {
+      if (me?.role !== "admin") return;
+      if (cloudUserId) { toast.info("Demo data lives in Lovable Cloud now and is shared by everyone, so it cannot be reset from here."); return; }
+      setDb({ ...fresh(), updatedAt: Date.now() });
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [db, ready, me, senior, pendingCloud, adoptCloudUser, sync]);
+  }), [db, ready, me, senior, pendingCloud, adoptCloudUser, cloudUserId, reload, applyShared]);
 
   return <C.Provider value={value}>{children}</C.Provider>;
 }

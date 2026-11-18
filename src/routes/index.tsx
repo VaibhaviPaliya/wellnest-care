@@ -5,9 +5,9 @@ import { toast } from "sonner";
 import { HeartHandshake, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
-import { SyncSettings } from '@/components/SyncSettings';
 import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
+import { isPhoneEmail } from "@/lib/cloud";
 import { HealthForm } from "@/components/HealthForm";
 import { TermsConsent } from "@/components/TermsConsent";
 import { HeroShowcase } from "@/components/HeroShowcase";
@@ -33,7 +33,7 @@ const DEMOS = [
 ];
 
 function Login() {
-  const { ready, me, login, register, pendingCloud, completeCloudRegistration, completeOnboarding } = useStore();
+  const { ready, me, phoneSignIn, pendingCloud, completeCloudRegistration, completeOnboarding } = useStore();
   const [pendingHealth, setPendingHealth] = useState<{ h: HealthProfile; addr: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
@@ -58,7 +58,7 @@ function Login() {
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
-  useEffect(() => { if (pendingCloud) { setMethod("email"); setEmail(pendingCloud.email); setStep("new"); } }, [pendingCloud]);
+  useEffect(() => { if (pendingCloud) { if (!isPhoneEmail(pendingCloud.email)) { setMethod("email"); setEmail(pendingCloud.email); } setStep("new"); } }, [pendingCloud]);
   const sendOtp = async () => {
     if (method === "phone" && !/^\d{10}$/.test(phone)) return toast.error("Please enter a 10-digit mobile number");
     if (method === "email" && !/^\S+@\S+\.\S+$/.test(email.trim())) return toast.error("Please enter a valid email address");
@@ -82,9 +82,11 @@ function Login() {
       return;
     }
     if (otp !== DEMO_OTP) return toast.error("That code is not correct. Try 123456.");
-    const found = login(method === "phone" ? phone : email);
-    if (found) { if (mode === "register") toast.info("You already have an account, so we signed you in."); return; }
-    setStep("new");
+    // Mobile accounts are Lovable Cloud accounts too; the server checks the demo code and starts a session.
+    setBusy(true);
+    const err = await phoneSignIn(phone, otp);
+    setBusy(false);
+    if (err) toast.error(err);
   };
   const checkDetails = () => {
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
@@ -102,10 +104,8 @@ function Login() {
       void completeCloudRegistration({ name: name.trim(), username, role, age: n, city }).then((err) => { setBusy(false); if (err) toast.error(err); else toast.success("Account created. Welcome to WellNest!"); if (err) setPendingHealth(null); });
       return;
     }
-    try {
-      register(method === "phone" ? phone : "", name.trim(), role, { username, email: method === "email" ? email : undefined, age: n, city });
-      toast.success("Account created. Welcome to WellNest!");
-    } catch (e) { setPendingHealth(null); toast.error(e instanceof Error ? e.message : "Could not register."); }
+    setPendingHealth(null);
+    toast.error("Please verify your mobile number or email first.");
   };
 
   return (
@@ -157,7 +157,6 @@ function Login() {
                   </div>
                 </>
               )}
-              <SyncSettings compact />
             </>
           )}
           {step === "otp" && (

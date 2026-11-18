@@ -14,91 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booked_by: string | null
+          created_at: string
+          data: Json
+          id: string
+          senior_id: string
+          updated_at: string
+        }
+        Insert: {
+          booked_by?: string | null
+          created_at?: string
+          data: Json
+          id: string
+          senior_id: string
+          updated_at?: string
+        }
+        Update: {
+          booked_by?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          senior_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      care_items: {
+        Row: {
+          data: Json
+          id: string
+          kind: string
+          senior_id: string
+          updated_at: string
+        }
+        Insert: {
+          data: Json
+          id: string
+          kind: string
+          senior_id: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          kind?: string
+          senior_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      catalog: {
+        Row: {
+          data: Json
+          id: string
+          kind: string
+          ord: number
+          updated_at: string
+        }
+        Insert: {
+          data: Json
+          id: string
+          kind: string
+          ord?: number
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          kind?: string
+          ord?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      family_links: {
+        Row: {
+          created_at: string
+          family_id: string
+          senior_id: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          senior_id: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          senior_id?: string
+        }
+        Relationships: []
+      }
+      notices: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          senior_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          id: string
+          senior_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          senior_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          address: string | null
           age: number | null
           city: string | null
+          consent_at: string | null
           created_at: string
+          health: Json | null
           id: string
           name: string
           phone: string | null
           username: string | null
         }
         Insert: {
+          address?: string | null
           age?: number | null
           city?: string | null
+          consent_at?: string | null
           created_at?: string
+          health?: Json | null
           id: string
           name?: string
           phone?: string | null
           username?: string | null
         }
         Update: {
+          address?: string | null
           age?: number | null
           city?: string | null
+          consent_at?: string | null
           created_at?: string
+          health?: Json | null
           id?: string
           name?: string
           phone?: string | null
           username?: string | null
         }
         Relationships: []
-      }
-      tracking_sessions: {
-        Row: {
-          accuracy: number | null
-          booking_id: string
-          expires_at: string
-          id: string
-          latitude: number | null
-          located_at: string | null
-          longitude: number | null
-          owner_id: string
-          partner_email: string
-          partner_id: string | null
-          service: string
-          stopped: boolean
-          viewer_email: string | null
-        }
-        Insert: {
-          accuracy?: number | null
-          booking_id: string
-          expires_at?: string
-          id?: string
-          latitude?: number | null
-          located_at?: string | null
-          longitude?: number | null
-          owner_id: string
-          partner_email: string
-          partner_id?: string | null
-          service: string
-          stopped?: boolean
-          viewer_email?: string | null
-        }
-        Update: {
-          accuracy?: number | null
-          booking_id?: string
-          expires_at?: string
-          id?: string
-          latitude?: number | null
-          located_at?: string | null
-          longitude?: number | null
-          owner_id?: string
-          partner_email?: string
-          partner_id?: string | null
-          service?: string
-          stopped?: boolean
-          viewer_email?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tracking_owner_profile_fk"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_roles: {
         Row: {
@@ -123,18 +193,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_senior: { Args: { _senior: string }; Returns: boolean }
+      can_view_senior: { Args: { _senior: string }; Returns: boolean }
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
+      link_senior: { Args: { _phone: string }; Returns: string }
+      save_senior_profile: { Args: { _senior: string; _health: Json | null; _address: string | null }; Returns: undefined }
+      visible_people: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          username: string | null
+          phone: string | null
+          email: string | null
+          age: number | null
+          city: string | null
+          address: string | null
+          consent_at: string | null
+          health: Json | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          linked_senior_ids: string[]
+        }[]
+      }
       choose_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: undefined
-      }
-      create_tracking: {
-        Args: {
-          _booking: string
-          _partner: string
-          _service: string
-          _viewer?: string
-        }
-        Returns: string
       }
       has_role: {
         Args: {
@@ -143,11 +226,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      share_tracking: {
-        Args: { _accuracy: number; _id: string; _lat: number; _lng: number }
-        Returns: undefined
-      }
-      stop_tracking: { Args: { _id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "senior" | "family" | "admin"

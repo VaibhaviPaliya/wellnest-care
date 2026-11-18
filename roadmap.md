@@ -1,9 +1,4 @@
 # WellNest completion
-## Real partner tracking
-- [x] Private Cloud tracking sessions for medicine, food and home visits, with email-bound partner invitations and an explicitly invited family viewer.
-- [x] Foreground phone location sharing, Google map display, stop-and-erase controls and stale/expired states.
-- [x] Seven tracking behavior tests, 39 regression tests and desktop/mobile sign-in checks; database columns confirmed.
-- [ ] Authenticated two-phone GPS flow — requesting user has no matching Cloud account/session; Google Maps must be checked on an authorized deployed origin. Background GPS and automatic dispatch remain unavailable while bookings/partners are local demo data.
 ## New care features
 - [x] Admin-managed weekly exercise plans and prerecorded video links.
 - [x] Demo exercise subscription: ₹1,999 / 30 days, eight sessions, no automatic renewal.
@@ -27,12 +22,11 @@
 
 ## Remaining document gaps
 - Partner photos are illustrations until the admin uploads real ones.
-- Two-phone sync is demo-grade (shared by room code, last writer wins); production needs bookings in Cloud tables with row-level security.
 - Hindi covers the main navigation and screens only; forms and partner pages still need translation. Reminders fire only while the app is open (no push/SMS yet).
 - Live online links open external meeting rooms; actual hosted classes and real-user timing studies remain unverified.
 
 ## Cloud migration
 - [x] Real email OTP sign-in/registration with secure roles (admin not self-assignable).
 - [ ] Real mobile SMS OTP — waiting on an SMS provider account (e.g. Twilio) and India DLT registration.
-- [ ] Move bookings, partners, notifications and health data into Cloud.
+- [x] Move bookings, partners, notifications and health data into Cloud (row-level security; demo mobile code still simulated).
 - [ ] Branded code emails from your own domain.

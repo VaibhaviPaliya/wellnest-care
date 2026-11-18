@@ -62,7 +62,7 @@ export interface Booking {
   /** Verified delivery partner assigned to a meal or medicine order. */
   deliveryId?: string; deliveryName?: string;
 }
-export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; who?: { kind: PartnerKind; id: string; name: string }; }
+export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; who?: { kind: PartnerKind; id: string; name: string }; /** Senior the alert is about (lets Cloud check the sender may alert this person). */ seniorId?: string; }
 
 export const CONDITION_LABEL: Record<Condition, string> = {
   diabetes: "Diabetes", high_bp: "High BP", heart: "Heart Disease", chewing: "Chewing Difficulty",

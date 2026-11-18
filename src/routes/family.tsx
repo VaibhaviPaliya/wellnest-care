@@ -29,9 +29,9 @@ function Family() {
   const [sent, setSent] = useState(false);
   const [editing, setEditing] = useState(false);
   const linked = db.users.filter((u) => me?.linkedSeniorIds.includes(u.id));
-  const link = () => {
+  const link = async () => {
     if (otp !== DEMO_OTP) return toast.error("Wrong code. Demo code is 123456.");
-    const err = linkSenior(phone);
+    const err = await linkSenior(phone);
     if (err) toast.error(err); else { toast.success("Linked! You’ll now get their alerts."); setPhone(""); setOtp(""); setSent(false); }
   };
   return (
@@ -59,7 +59,7 @@ function Family() {
           <label htmlFor="so" className="mb-1 mt-4 block font-bold">Code from their phone (demo: {DEMO_OTP})</label>
           <input id="so" className="field" inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
         </>)}
-        <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={phone.length !== 10} onClick={() => (sent ? link() : (setSent(true), toast.success(`Approval code sent. Demo: ${DEMO_OTP}`)))}>{sent ? "Link account" : "Send approval code"}</Button>
+        <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={phone.length !== 10} onClick={() => (sent ? void link() : (setSent(true), toast.success(`Approval code sent. Demo: ${DEMO_OTP}`)))}>{sent ? "Link account" : "Send approval code"}</Button>
       </div>
     </>
   );
