@@ -88,4 +88,13 @@ describe("Cloud mode", () => {
     await waitFor(() => expect(hook.result.current.ready).toBe(true));
     await expect(hook.result.current.phoneSignIn("9876543210", "123456")).resolves.toBeNull();
   });
+
+  it("sends a new Google user to registration with their name filled in", async () => {
+    const roles = tables["user_roles"]; tables["user_roles"] = [];
+    const hook = renderHook(() => useStore(), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    act(() => authCb?.("SIGNED_IN", { user: { id: "g-user", email: "asha@gmail.com", user_metadata: { full_name: "Asha Rao" } } }));
+    await waitFor(() => expect(hook.result.current.pendingCloud).toEqual({ id: "g-user", email: "asha@gmail.com", name: "Asha Rao" }));
+    tables["user_roles"] = roles;
+  });
 });

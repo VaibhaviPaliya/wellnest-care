@@ -68,7 +68,7 @@ interface Ctx {
   /** Fires due reminders and one-hour booking heads-ups for the managed senior; returns the titles fired. */
   runTimers: (now?: Date) => string[];
   /** Signed in with a real emailed code but has not finished registering yet. */
-  pendingCloud: { id: string; email: string } | null;
+  pendingCloud: { id: string; email: string; name?: string } | null;
   completeCloudRegistration: (p: { name: string; username: string; role: Role; age?: number; city?: string }) => Promise<string | null>;
 }
 const C = createContext<Ctx | null>(null);
@@ -89,7 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-  const [pendingCloud, setPendingCloud] = useState<{ id: string; email: string } | null>(null);
+  const [pendingCloud, setPendingCloud] = useState<{ id: string; email: string; name?: string } | null>(null);
   // ---- Lovable Cloud mode ----
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const synced = useRef<DB | null>(null); // last state known to match Cloud
@@ -126,13 +126,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (failed || reloadAgain.current) { reloadAgain.current = false; void reload(); }
   }, [reload]);
 
-  const adoptCloudUser = useCallback(async (id: string, email: string) => {
+  const adoptCloudUser = useCallback(async (id: string, email: string, name?: string) => {
     const [{ data: prof }, { data: roles }] = await Promise.all([
       supabase.from("profiles").select("id,username").eq("id", id).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", id),
     ]);
     const role = roles?.find((r) => r.role === "admin")?.role ?? roles?.[0]?.role;
-    if (!role || !prof?.username) { setPendingCloud({ id, email }); return; }
+    if (!role || !prof?.username) { setPendingCloud({ id, email, name }); return; }
     setPendingCloud(null);
     try {
       const shared = await loadCloud(supabase);
@@ -149,7 +149,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        const u = session.user; setTimeout(() => { void adoptCloudUser(u.id, u.email ?? ""); }, 0);
+        const u = session.user;
+        // Google accounts bring their name; it pre-fills the registration form.
+        const name = typeof u.user_metadata?.["full_name"] === "string" ? u.user_metadata["full_name"] : typeof u.user_metadata?.["name"] === "string" ? u.user_metadata["name"] : undefined;
+        setTimeout(() => { void adoptCloudUser(u.id, u.email ?? "", name); }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();

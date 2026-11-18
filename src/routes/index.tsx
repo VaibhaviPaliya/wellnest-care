@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
 import { isPhoneEmail } from "@/lib/cloud";
+import { continueWithGoogle } from "@/lib/google";
 import { HealthForm } from "@/components/HealthForm";
 import { TermsConsent } from "@/components/TermsConsent";
 import { HeroShowcase } from "@/components/HeroShowcase";
@@ -58,7 +59,7 @@ function Login() {
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
-  useEffect(() => { if (pendingCloud) { if (!isPhoneEmail(pendingCloud.email)) { setMethod("email"); setEmail(pendingCloud.email); } setStep("new"); } }, [pendingCloud]);
+  useEffect(() => { if (pendingCloud) { if (!isPhoneEmail(pendingCloud.email)) { setMethod("email"); setEmail(pendingCloud.email); } if (pendingCloud.name) setName((n) => n || pendingCloud.name || ""); setStep("new"); } }, [pendingCloud]);
   const sendOtp = async () => {
     if (method === "phone" && !/^\d{10}$/.test(phone)) return toast.error("Please enter a 10-digit mobile number");
     if (method === "email" && !/^\S+@\S+\.\S+$/.test(email.trim())) return toast.error("Please enter a valid email address");
@@ -129,6 +130,10 @@ function Login() {
           )}
           {step === "id" && (
             <>
+              <Button variant="care" size="care" className="btn btn-outline w-full" disabled={busy} onClick={async () => { setBusy(true); const err = await continueWithGoogle(); setBusy(false); if (err) toast.error(err); }}>
+                Continue with Google
+              </Button>
+              <div className="my-4 flex items-center gap-3 text-sm text-muted-foreground" aria-hidden><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
               <p className="mb-2 text-base font-bold">{mode === "register" ? "Create your account with" : "Sign in with"}</p>
               <div className="mb-4 flex gap-2">
                 <Button variant="care" size="care" className="chip" aria-pressed={method === "phone"} onClick={() => setMethod("phone")}>Mobile number</Button>
