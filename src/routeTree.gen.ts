@@ -21,6 +21,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as TrackingRouteImport } from './routes/tracking'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +83,11 @@ const RemindersRoute = RemindersRouteImport.update({
   path: '/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrackingRoute = TrackingRouteImport.update({
+  id: '/tracking',
+  path: '/tracking',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/tracking': typeof TrackingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/tracking': typeof TrackingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/tracking': typeof TrackingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/tracking'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/tracking'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/tracking'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +196,7 @@ export interface RootRouteChildren {
   PharmacyRoute: typeof PharmacyRoute
   ProfileRoute: typeof ProfileRoute
   RemindersRoute: typeof RemindersRoute
+  TrackingRoute: typeof TrackingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tracking': {
+      id: '/tracking'
+      path: '/tracking'
+      fullPath: '/tracking'
+      preLoaderRoute: typeof TrackingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   PharmacyRoute: PharmacyRoute,
   ProfileRoute: ProfileRoute,
   RemindersRoute: RemindersRoute,
+  TrackingRoute: TrackingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

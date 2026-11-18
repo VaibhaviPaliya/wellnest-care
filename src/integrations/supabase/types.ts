@@ -44,6 +44,62 @@ export type Database = {
         }
         Relationships: []
       }
+      tracking_sessions: {
+        Row: {
+          accuracy: number | null
+          booking_id: string
+          expires_at: string
+          id: string
+          latitude: number | null
+          located_at: string | null
+          longitude: number | null
+          owner_id: string
+          partner_email: string
+          partner_id: string | null
+          service: string
+          stopped: boolean
+          viewer_email: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          booking_id: string
+          expires_at?: string
+          id?: string
+          latitude?: number | null
+          located_at?: string | null
+          longitude?: number | null
+          owner_id: string
+          partner_email: string
+          partner_id?: string | null
+          service: string
+          stopped?: boolean
+          viewer_email?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          booking_id?: string
+          expires_at?: string
+          id?: string
+          latitude?: number | null
+          located_at?: string | null
+          longitude?: number | null
+          owner_id?: string
+          partner_email?: string
+          partner_id?: string | null
+          service?: string
+          stopped?: boolean
+          viewer_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_owner_profile_fk"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -71,6 +127,15 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: undefined
       }
+      create_tracking: {
+        Args: {
+          _booking: string
+          _partner: string
+          _service: string
+          _viewer?: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -78,6 +143,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      share_tracking: {
+        Args: { _accuracy: number; _id: string; _lat: number; _lng: number }
+        Returns: undefined
+      }
+      stop_tracking: { Args: { _id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "senior" | "family" | "admin"

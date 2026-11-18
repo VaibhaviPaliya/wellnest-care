@@ -1,0 +1,1 @@
+ALTER TABLE public.tracking_sessions ADD CONSTRAINT tracking_owner_profile_fk FOREIGN KEY (owner_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
