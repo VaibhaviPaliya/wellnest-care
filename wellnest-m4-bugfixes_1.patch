@@ -1,0 +1,103 @@
+From b629c451fd16cc31b5256ff13bb18d046fa2d3d9 Mon Sep 17 00:00:00 2001
+From: WellNest QA <qa@example.invalid>
+Date: Fri, 20 Nov 2026 16:54:19 +0000
+Subject: [PATCH] Fix M4 test-log bugs B01, B02, B04, B05
+
+- B01: Continue no longer silently disabled for short usernames; inline 3-20 rule shown and turns red when invalid, toast explains on Continue
+- B02: Home 'Coming up' lists only future bookings (past seed/old bookings no longer shown)
+- B04: Show a clear message when Google sign-in returns an error (e.g. provider not enabled) instead of silently reloading
+- B05: Consent checkboxes no longer shrink next to long labels (shrink-0)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01R9W76y21Z4Ay2T6kkdwJ46
+---
+ src/components/TermsConsent.tsx |  2 +-
+ src/routes/home.tsx             |  4 +++-
+ src/routes/index.tsx            | 15 ++++++++++++++-
+ src/routes/onboarding.tsx       |  2 +-
+ 4 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/components/TermsConsent.tsx b/src/components/TermsConsent.tsx
+index 023ce74..50ff6b8 100644
+--- a/src/components/TermsConsent.tsx
++++ b/src/components/TermsConsent.tsx
+@@ -25,7 +25,7 @@ export function TermsConsent({ role, busy, onAccept, onBack }: { role: Role; bus
+       </div>
+       {items.map(([k, t]) => (
+         <label key={k} className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-base">
+-          <input type="checkbox" className="mt-1 h-6 w-6 accent-[var(--primary)]" checked={!!ok[k]} onChange={(e) => setOk({ ...ok, [k]: e.target.checked })} />{t}
++          <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[var(--primary)]" checked={!!ok[k]} onChange={(e) => setOk({ ...ok, [k]: e.target.checked })} />{t}
+         </label>
+       ))}
+       <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={busy || !items.every(([k]) => ok[k])} onClick={onAccept}>{role === "senior" ? "I agree — continue" : busy ? "Creating account…" : "I agree — create account"}</Button>
+diff --git a/src/routes/home.tsx b/src/routes/home.tsx
+index 811b146..bcffdd5 100644
+--- a/src/routes/home.tsx
++++ b/src/routes/home.tsx
+@@ -33,7 +33,9 @@ function HomePage() {
+   const mine = db.bookings.filter((b) => b.seniorId === senior.id && !["completed", "cancelled"].includes(b.status)).sort((a, b) => a.when.localeCompare(b.when));
+   const todayStr = new Date().toDateString();
+   const today = mine.filter((b) => new Date(b.when).toDateString() === todayStr);
+-  const upcoming = mine.filter((b) => new Date(b.when).toDateString() !== todayStr);
++  // B02: only future bookings are "coming up"; past dates (e.g. old seed bookings) are never listed as upcoming.
++  const now = Date.now();
++  const upcoming = mine.filter((b) => new Date(b.when).toDateString() !== todayStr && new Date(b.when).getTime() > now);
+   const hour = new Date().getHours();
+   const greet = hour < 12 ? "Good morning, {name}" : hour < 17 ? "Good afternoon, {name}" : "Good evening, {name}";
+ 
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 181edea..dffa3b8 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -58,6 +58,18 @@ function Login() {
+     if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
+   }, [ready, me, nav, pendingHealth]);
+ 
++  // B04: if Google sign-in bounces back with an error in the URL (e.g. the provider is not enabled),
++  // tell the user instead of silently reloading the sign-in page.
++  useEffect(() => {
++    const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
++    if (!h.get("error")) return;
++    const desc = (h.get("error_description") || "").replace(/\+/g, " ");
++    toast.error(/not supported|not enabled/i.test(decodeURIComponent(desc))
++      ? "Google sign-in is not available right now. Please use your mobile number or email."
++      : "Google sign-in did not finish. Please try again or use your mobile number.");
++    window.history.replaceState(null, "", window.location.pathname + window.location.search);
++  }, []);
++
+   const target = method === "phone" ? `+91 ${phone}` : email.trim();
+   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
+   useEffect(() => { if (pendingCloud) { if (!isPhoneEmail(pendingCloud.email)) { setMethod("email"); setEmail(pendingCloud.email); } if (pendingCloud.name) setName((n) => n || pendingCloud.name || ""); setStep("new"); } }, [pendingCloud]);
+@@ -185,6 +197,7 @@ function Login() {
+               <input id="name" className="field" value={name} onChange={(e) => setName(e.target.value)} />
+               <label htmlFor="username" className="mb-2 mt-4 block font-bold">Username</label>
+               <input id="username" className="field" placeholder="e.g. kamala_r" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} />
++              <p className={`mt-1 text-sm ${username && !/^[a-zA-Z0-9_.]{3,20}$/.test(username) ? "font-semibold text-destructive" : "text-muted-foreground"}`} role={username && !/^[a-zA-Z0-9_.]{3,20}$/.test(username) ? "alert" : undefined}>3–20 letters, numbers, _ or .</p>
+               <div className="mt-4 grid grid-cols-2 gap-3">
+                 <div><label htmlFor="age" className="mb-2 block font-bold">Age (optional)</label><input id="age" inputMode="numeric" maxLength={3} className="field" value={age} onChange={(e) => setAge(e.target.value.replace(/\D/g, ""))} /></div>
+                 <div><label htmlFor="city" className="mb-2 block font-bold">City (optional)</label><input id="city" className="field" value={city} onChange={(e) => setCity(e.target.value)} /></div>
+@@ -197,7 +210,7 @@ function Login() {
+                   </Button>
+                 ))}
+               </div>
+-              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2 || username.trim().length < 3} onClick={checkDetails}>Continue</Button>
++              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2} onClick={checkDetails}>Continue</Button>
+             </>
+           )}
+           {step === "terms" && (
+diff --git a/src/routes/onboarding.tsx b/src/routes/onboarding.tsx
+index e1d8526..eb93536 100644
+--- a/src/routes/onboarding.tsx
++++ b/src/routes/onboarding.tsx
+@@ -49,7 +49,7 @@ function Onboarding() {
+           </ul>
+           {([["a", "I agree to WellNest storing my health information for the purposes above."], ["b", "I understand I can withdraw consent and delete my data at any time."]] as const).map(([k, t]) => (
+             <label key={k} className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-base">
+-              <input type="checkbox" className="mt-1 h-6 w-6 accent-[var(--primary)]" checked={agree[k]} onChange={(e) => setAgree({ ...agree, [k]: e.target.checked })} />
++              <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-[var(--primary)]" checked={agree[k]} onChange={(e) => setAgree({ ...agree, [k]: e.target.checked })} />
+               {t}
+             </label>
+           ))}
+-- 
+2.43.0
+
