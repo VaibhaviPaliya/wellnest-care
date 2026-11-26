@@ -8,6 +8,8 @@ import { useStore } from "@/lib/store";
 import { BrandMark } from "@/components/BrandMark";
 import { LangToggle, useT } from "@/lib/i18n";
 import type { Role } from "@/lib/seed";
+import { RAZORPAY_KEY_ID, RAZORPAY_TEST_MODE, loadRazorpay, toPaise } from "@/lib/payments";
+import { createPaymentOrder, verifyPayment } from "@/lib/payments.functions";
 
 export function Logo() {
   const { t } = useT();
@@ -110,54 +112,77 @@ export function PageTitle({ title, sub, back = true }: { title: string; sub?: st
   );
 }
 
-/** Simulated UPI checkout. */
-export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: () => void; onDone: () => void }) {
-  const [app, setApp] = useState("GPay");
-  const [vpa, setVpa] = useState("kamala@okaxis");
-  const [stage, setStage] = useState<"form" | "paying" | "done">("form");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const paying = useRef(false);
-  useEffect(() => { if (open) setStage("form"); }, [open]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+/** Razorpay checkout (test mode). Opens Razorpay's own window; the booking is saved only after the payment succeeds. */
+export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: (paymentRef: string) => void; onDone: () => void }) {
+  const { me } = useStore();
+  // "razorpay": our dialog steps aside so Razorpay's window can take focus.
+  const [stage, setStage] = useState<"form" | "preparing" | "razorpay" | "saving" | "done">("form");
+  const [ref, setRef] = useState("");
+  const busy = useRef(false);
+  useEffect(() => { if (open) { setStage("form"); setRef(""); busy.current = false; } }, [open]);
   if (!open) return null;
-  const pay = () => {
-    if (paying.current) return;
-    paying.current = true;
-    setStage("paying");
-    timer.current = setTimeout(() => {
-      try { onPaid(); setStage("done"); }
-      catch (error) { setStage("form"); toast.error(error instanceof Error ? error.message : "Could not confirm your booking. Please try again."); }
-      finally { paying.current = false; }
-    }, 1600);
+  const reset = (message?: string) => { busy.current = false; setStage("form"); if (message) toast.error(message); };
+  const save = (paymentRef: string) => {
+    try { onPaid(paymentRef); setRef(paymentRef); setStage("done"); busy.current = false; }
+    catch (error) { reset(`Payment ${paymentRef} went through, but the booking could not be saved: ${error instanceof Error ? error.message : "please try again"}.${RAZORPAY_TEST_MODE ? " This was a test payment, so no real money was taken." : " Contact support for a refund."}`); }
   };
+  const pay = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setStage("preparing");
+    try {
+      const [, order] = await Promise.all([loadRazorpay(), createPaymentOrder({ data: { amount, purpose: title } })]);
+      const Razorpay = window.Razorpay;
+      if (!Razorpay) throw new Error("Razorpay did not load.");
+      const rzp = new Razorpay({
+        key: RAZORPAY_KEY_ID, amount: toPaise(amount), currency: "INR", name: "WellNest", description: title,
+        ...(order.orderId ? { order_id: order.orderId } : {}),
+        prefill: { name: me?.name, contact: me?.phone ? `+91${me.phone}` : undefined },
+        notes: { purpose: title },
+        theme: { color: "#0F7C74" },
+        modal: { ondismiss: () => reset(), confirm_close: true },
+        handler: async (r) => {
+          setStage("saving");
+          try {
+            if (order.orderId) {
+              if (!r.razorpay_order_id || !r.razorpay_signature) throw new Error("Payment details are incomplete.");
+              const { ok } = await verifyPayment({ data: { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature } });
+              if (!ok) throw new Error("Payment could not be verified.");
+            }
+            save(r.razorpay_payment_id);
+          } catch (error) { reset(error instanceof Error ? error.message : "Payment could not be verified."); }
+        },
+      });
+      rzp.on("payment.failed", (r) => toast.error(r.error?.description ?? "Payment failed. Please try again."));
+      setStage("razorpay");
+      rzp.open();
+    } catch (error) { reset(error instanceof Error ? error.message : "Could not start the payment."); }
+  };
+  const working = stage === "preparing" || stage === "saving";
   return (
-    <Dialog open={open} onOpenChange={(value) => { if (!value && stage !== "paying") { if (stage === "done") onDone(); else onClose(); } }}>
-      <DialogContent aria-describedby="payment-description" onEscapeKeyDown={(event) => { if (stage === "paying") event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
-        <DialogTitle className="sr-only">UPI payment</DialogTitle>
-        <DialogDescription id="payment-description" className="sr-only">Simulated payment. No money is charged.</DialogDescription>
+    <Dialog open={stage !== "razorpay"} onOpenChange={(value) => { if (!value && !working) { if (stage === "done") onDone(); else onClose(); } }}>
+      <DialogContent aria-describedby="payment-description" onEscapeKeyDown={(event) => { if (working) event.preventDefault(); }} onInteractOutside={(event) => event.preventDefault()}>
+        <DialogTitle className="sr-only">Payment</DialogTitle>
+        <DialogDescription id="payment-description" className="sr-only">Pay securely with Razorpay.{RAZORPAY_TEST_MODE ? " Test mode: no real money is charged." : ""}</DialogDescription>
         {stage === "done" ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="mx-auto h-16 w-16 text-success" />
             <h2 className="mt-3 text-lg font-bold">Payment successful</h2>
             <p className="mt-1 text-muted-foreground">₹{amount} paid · Family has been notified</p>
+            <p className="mt-1 text-xs text-muted-foreground">Razorpay ref {ref}</p>
             <Button variant="care" size="care" className="btn btn-primary mt-6 w-full" onClick={onDone}>Done</Button>
           </div>
         ) : (
           <>
-            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">UPI Checkout (demo)</p>
+            <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Secure checkout · Razorpay{RAZORPAY_TEST_MODE ? " (test mode)" : ""}</p>
             <h2 className="mt-1 text-lg font-bold">{title}</h2>
             <p className="my-4 font-display text-3xl font-bold">₹{amount}</p>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {["GPay", "PhonePe", "Paytm", "BHIM"].map((a) => (
-                <Button variant="care" size="care" key={a} className="chip" aria-pressed={app === a} onClick={() => setApp(a)}><Smartphone className="h-4 w-4" />{a}</Button>
-              ))}
-            </div>
-            <label className="mb-1 block font-semibold" htmlFor="vpa">UPI ID</label>
-            <input id="vpa" className="field" value={vpa} onChange={(e) => setVpa(e.target.value)} />
+            <p className="flex items-center gap-2 text-sm text-muted-foreground"><Smartphone className="h-4 w-4" />UPI, cards, netbanking and wallets</p>
+            {RAZORPAY_TEST_MODE && <p className="mt-3 rounded-lg bg-muted p-3 text-sm">Test mode — no real money moves. Use UPI ID <b>success@razorpay</b>, or choose Netbanking, any bank, then <b>Success</b>.</p>}
             <div className="mt-6 flex gap-3">
-              <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={onClose} disabled={stage === "paying"}>Cancel</Button>
-              <Button variant="care" size="care" className="btn btn-accent flex-1" onClick={pay} disabled={stage === "paying" || !vpa.includes("@")}>
-                {stage === "paying" ? <><Loader2 className="h-5 w-5 animate-spin" />Paying…</> : `Pay with ${app}`}
+              <Button variant="care" size="care" className="btn btn-outline flex-1" onClick={onClose} disabled={working}>Cancel</Button>
+              <Button variant="care" size="care" className="btn btn-accent flex-1" onClick={pay} disabled={working}>
+                {working ? <><Loader2 className="h-5 w-5 animate-spin" />{stage === "saving" ? "Confirming…" : "Opening…"}</> : `Pay ₹${amount}`}
               </Button>
             </div>
           </>

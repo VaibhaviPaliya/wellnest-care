@@ -128,9 +128,9 @@ function Pharmacy() {
       <UpiCheckout open={pay} amount={total} title={`Medicines from ${pharmacy?.name}`}
         onClose={() => setPay(false)}
         onDone={() => { setPay(false); nav({ to: "/activity" }); }}
-        onPaid={() => {
+        onPaid={(paymentRef) => {
           if (!can || !pharmacy) throw new Error("Please choose a pharmacy, medicines and a future delivery time.");
-          createBooking({ type: "medicine", title: mode === "upload" ? "Prescription order" : "Medicine order", partnerId: ph, partnerName: pharmacy.name, amount: total, when: sessionDate(day, slot).toISOString(), detail: mode === "upload" ? `Prescription: ${file}` : meds.map((m) => m.name).join(", "), prescription: mode === "upload" ? file ?? undefined : undefined, prescriptionData: mode === "upload" ? attachment ?? undefined : undefined, items: mode === "select" ? meds.map((m) => ({ name: m.name, qty: 1, price: m.price })) : [] });
+          createBooking({ type: "medicine", title: mode === "upload" ? "Prescription order" : "Medicine order", partnerId: ph, partnerName: pharmacy.name, amount: total, when: sessionDate(day, slot).toISOString(), detail: mode === "upload" ? `Prescription: ${file}` : meds.map((m) => m.name).join(", "), prescription: mode === "upload" ? file ?? undefined : undefined, prescriptionData: mode === "upload" ? attachment ?? undefined : undefined, items: mode === "select" ? meds.map((m) => ({ name: m.name, qty: 1, price: m.price })) : [], upiRef: paymentRef });
           toast.success("Sent to pharmacy! Track delivery under Bookings.");
         }} />
     </>

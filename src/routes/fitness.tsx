@@ -49,9 +49,9 @@ function Fitness() {
   };
   const available = !!sel && isSlotAvailable(sel.day, sel.slot, sel.coach.id, db.bookings);
   const credit = sel ? db.care.subscriptions.find(s => s.seniorId === senior?.id && hasActiveSubscription(s) && s.remaining > 0 && db.care.plans.find(p => p.id === s.planId)?.coachId === sel.coach.id && sessionDate(sel.day, sel.slot) < new Date(s.ends)) : undefined;
-  const book = (useCredit: boolean) => {
+  const book = (useCredit: boolean, paymentRef?: string) => {
     if (!sel || !available) throw new Error('This slot is no longer available.');
-    createBooking({ type: 'fitness', title: `${sel.kind[0].toUpperCase() + sel.kind.slice(1)} · ${sel.mode === 'home' ? 'Home visit' : 'Online live'}`, partnerId: sel.coach.id, partnerName: sel.coach.name, amount: useCredit ? 0 : sel.coach.price, when: sessionDate(sel.day, sel.slot).toISOString(), detail: `${sel.coach.level} level${useCredit ? ' · subscription credit' : ''}`, subscriptionId: useCredit ? credit?.id : undefined, videoUrl: sel.mode === 'online' ? 'https://meet.jit.si/WellNest-' + sel.coach.id + '-' + sessionDate(sel.day, sel.slot).getTime() : undefined });
+    createBooking({ type: 'fitness', title: `${sel.kind[0].toUpperCase() + sel.kind.slice(1)} · ${sel.mode === 'home' ? 'Home visit' : 'Online live'}`, partnerId: sel.coach.id, partnerName: sel.coach.name, amount: useCredit ? 0 : sel.coach.price, when: sessionDate(sel.day, sel.slot).toISOString(), detail: `${sel.coach.level} level${useCredit ? ' · subscription credit' : ''}`, subscriptionId: useCredit ? credit?.id : undefined, videoUrl: sel.mode === 'online' ? 'https://meet.jit.si/WellNest-' + sel.coach.id + '-' + sessionDate(sel.day, sel.slot).getTime() : undefined, upiRef: paymentRef });
     toast.success('Session booked! Family members have been alerted.');
   };
 
@@ -111,8 +111,8 @@ function Fitness() {
       )}
       <UpiCheckout open={pay} amount={sel?.coach.price ?? 0} title={sel ? `${sel.kind} with ${sel.coach.name}` : ""}
         onClose={() => { setPay(false); }}
-        onPaid={() => {
-          book(false);
+        onPaid={(paymentRef) => {
+          book(false, paymentRef);
         }} onDone={() => { setPay(false); setSel(null); nav({ to: "/activity" }); }} />
     </>
   );

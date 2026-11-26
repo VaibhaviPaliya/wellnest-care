@@ -19,7 +19,7 @@ export function TermsConsent({ role, busy, onAccept, onBack }: { role: Role; bus
         <p className="font-bold">1. Our service</p><p>WellNest connects you with verified fitness coaches, partner kitchens and pharmacies. Partners deliver the services; WellNest helps you book and track them.</p>
         <p className="mt-3 font-bold">2. Your data (DPDP Act, 2023)</p><p>We collect only what is needed: your contact details, and for seniors, health conditions, food preference, mobility and optional medical records. Health data is used only to filter meals and sessions. Partners see only what they need to serve you.</p>
         <p className="mt-3 font-bold">3. Family access</p><p>Family members you link can see your bookings and receive alerts. You can remove their access anytime from your Profile.</p>
-        <p className="mt-3 font-bold">4. Payments & cancellations</p><p>Payments are made by UPI. Bookings can be cancelled free of charge up to 2 hours before the slot.</p>
+        <p className="mt-3 font-bold">4. Payments & cancellations</p><p>Payments are processed securely by Razorpay (UPI, cards, netbanking and wallets). Bookings can be cancelled free of charge up to 2 hours before the slot.</p>
         <p className="mt-3 font-bold">5. Not medical advice</p><p>Suggestions are guidance only. Always follow your doctor’s advice.</p>
         <p className="mt-3 font-bold">6. Your rights</p><p>You can correct your details, withdraw consent, delete your health data, or delete your account at any time from your Profile.</p>
       </div>

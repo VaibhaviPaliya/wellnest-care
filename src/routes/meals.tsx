@@ -105,7 +105,7 @@ function Meals() {
               <p className="mb-2 mt-4 font-bold">Deliver at</p>
               <p className="mb-2 text-muted-foreground">{(() => { const d = new Date(); const [hour, minute] = slot.split(":").map(Number); d.setHours(hour, minute, 0, 0); if (d <= new Date()) d.setDate(d.getDate() + 1); return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" }); })()}</p>
               <div className="flex flex-wrap gap-2">{["08:30", "13:00", "19:30"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>{s === "08:30" ? "Breakfast" : s === "13:00" ? "Lunch" : "Dinner"} {s}</Button>)}</div>
-              <Button variant="care" size="care" className="btn btn-accent mt-5 w-full" onClick={() => setPay(true)}>Pay ₹{total} with UPI</Button>
+              <Button variant="care" size="care" className="btn btn-accent mt-5 w-full" onClick={() => setPay(true)}>Pay ₹{total}</Button>
             </>
           )}
         </aside>
@@ -114,10 +114,10 @@ function Meals() {
       <UpiCheckout open={pay} amount={total} title={`Meal from ${kName(kitchenIds[0] ?? "")}`}
         onClose={() => setPay(false)}
         onDone={() => { setPay(false); setCart({}); nav({ to: "/activity" }); }}
-        onPaid={() => {
+        onPaid={(paymentRef) => {
           if (!items.length) throw new Error("Your cart is empty. Please choose a suitable dish.");
           const w = new Date(); const [hh, mm] = slot.split(":").map(Number); w.setHours(hh, mm, 0, 0); if (w < new Date()) w.setDate(w.getDate() + 1);
-          createBooking({ type: "meal", title: `${slot === "08:30" ? "Breakfast" : slot === "13:00" ? "Lunch" : "Dinner"} from ${kName(kitchenIds[0]).split(" ")[0]}`, partnerId: kitchenIds[0], partnerName: kName(kitchenIds[0]), amount: total, when: w.toISOString(), detail: `${items.length} item(s)`, items: items.map((i) => ({ name: i.d.name, qty: i.qty, price: i.d.price })) });
+          createBooking({ type: "meal", title: `${slot === "08:30" ? "Breakfast" : slot === "13:00" ? "Lunch" : "Dinner"} from ${kName(kitchenIds[0]).split(" ")[0]}`, partnerId: kitchenIds[0], partnerName: kName(kitchenIds[0]), amount: total, when: w.toISOString(), detail: `${items.length} item(s)`, items: items.map((i) => ({ name: i.d.name, qty: i.qty, price: i.d.price })), upiRef: paymentRef });
           toast.success("Order placed! Family members have been alerted.");
         }} />
     </>

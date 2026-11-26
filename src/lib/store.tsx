@@ -42,7 +42,7 @@ interface Ctx {
   linkSenior: (phone: string) => Promise<string | null>;
   setActiveSenior: (id: string) => void;
   unlinkFamily: (id: string) => void;
-  createBooking: (b: Omit<Booking, "id" | "createdAt" | "status" | "seniorId" | "bookedBy" | "upiRef">) => Booking;
+  createBooking: (b: Omit<Booking, "id" | "createdAt" | "status" | "seniorId" | "bookedBy" | "upiRef"> & { upiRef?: string }) => Booking;
   setStatus: (id: string, s: Status) => void;
   review: (id: string, rating: number, text: string) => void;
   markRead: () => void;
@@ -214,7 +214,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!plan || !db.coaches.some(c => c.id === plan.coachId && c.verified)) return 'This plan is not available.';
       if (db.care.subscriptions.some(s => s.seniorId === senior.id && hasActiveSubscription(s))) return 'An exercise subscription is already active.';
       const starts = new Date(); const ends = new Date(starts.getTime() + EXERCISE_SUBSCRIPTION.days * 86400000);
-      update(d => ({ ...d, care: { ...d.care, subscriptions: [...d.care.subscriptions, { id: uid('sub'), seniorId: senior.id, planId, starts: starts.toISOString(), ends: ends.toISOString(), remaining: EXERCISE_SUBSCRIPTION.sessions, cancelled: false }] }, notices: notifyAll(d, senior.id, 'Exercise subscription activated', `₹${EXERCISE_SUBSCRIPTION.price} demo UPI · ${EXERCISE_SUBSCRIPTION.sessions} sessions · expires ${ends.toLocaleDateString('en-IN')} · no automatic renewal`) }));
+      update(d => ({ ...d, care: { ...d.care, subscriptions: [...d.care.subscriptions, { id: uid('sub'), seniorId: senior.id, planId, starts: starts.toISOString(), ends: ends.toISOString(), remaining: EXERCISE_SUBSCRIPTION.sessions, cancelled: false }] }, notices: notifyAll(d, senior.id, 'Exercise subscription activated', `₹${EXERCISE_SUBSCRIPTION.price} paid via Razorpay · ${EXERCISE_SUBSCRIPTION.sessions} sessions · expires ${ends.toLocaleDateString('en-IN')} · no automatic renewal`) }));
       return null;
     },
     cancelSubscription: (id) => {
@@ -391,12 +391,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (b.subscriptionId && (!subscription || b.type !== 'fitness' || db.care.plans.find(p => p.id === subscription.planId)?.coachId !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
       const rider = b.type === "fitness" ? null : assignDelivery(db.delivery, db.bookings);
       if (b.type !== "fitness" && !rider) throw new Error("No verified delivery partner is available right now. Please try again later.");
-      const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: "UPI" + Math.floor(1e6 + Math.random() * 9e6), ...(rider ? { deliveryId: rider.id, deliveryName: rider.name } : {}) };
+      const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: b.upiRef ?? "UPI" + Math.floor(1e6 + Math.random() * 9e6), ...(rider ? { deliveryId: rider.id, deliveryName: rider.name } : {}) };
       const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
       const time = (x: Date) => x.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
       const helper = rider ? `Delivery by ${rider.name} (verified) around ${time(new Date(b.when))}` : b.videoUrl ? `${b.partnerName} · online video link in Bookings` : `${b.partnerName} arrives ${time(arrivalWindow(b).from)}–${time(arrivalWindow(b).to)}`;
       const whoRef: Notice["who"] = rider ? { kind: "delivery", id: rider.id, name: rider.name } : { kind: "coach", id: b.partnerId, name: b.partnerName };
-      update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${helper} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via demo UPI`}`, whoRef) }));
+      update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${helper} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via Razorpay`}`, whoRef) }));
       return booking;
     },
     setStatus: (id, s) => update((d) => {
