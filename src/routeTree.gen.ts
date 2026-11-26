@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AlertsRouteImport } from './routes/alerts'
+import { Route as DeliveryRouteImport } from './routes/delivery'
 import { Route as FamilyRouteImport } from './routes/family'
 import { Route as FitnessRouteImport } from './routes/fitness'
 import { Route as HomeRouteImport } from './routes/home'
@@ -42,6 +43,11 @@ const AdminRoute = AdminRouteImport.update({
 const AlertsRoute = AlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeliveryRoute = DeliveryRouteImport.update({
+  id: '/delivery',
+  path: '/delivery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FamilyRoute = FamilyRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
+  '/delivery': typeof DeliveryRoute
   '/family': typeof FamilyRoute
   '/fitness': typeof FitnessRoute
   '/home': typeof HomeRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
+  '/delivery': typeof DeliveryRoute
   '/family': typeof FamilyRoute
   '/fitness': typeof FitnessRoute
   '/home': typeof HomeRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/admin': typeof AdminRoute
   '/alerts': typeof AlertsRoute
+  '/delivery': typeof DeliveryRoute
   '/family': typeof FamilyRoute
   '/fitness': typeof FitnessRoute
   '/home': typeof HomeRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/alerts'
+    | '/delivery'
     | '/family'
     | '/fitness'
     | '/home'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/alerts'
+    | '/delivery'
     | '/family'
     | '/fitness'
     | '/home'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/activity'
     | '/admin'
     | '/alerts'
+    | '/delivery'
     | '/family'
     | '/fitness'
     | '/home'
@@ -200,6 +212,7 @@ export interface RootRouteChildren {
   ActivityRoute: typeof ActivityRoute
   AdminRoute: typeof AdminRoute
   AlertsRoute: typeof AlertsRoute
+  DeliveryRoute: typeof DeliveryRoute
   FamilyRoute: typeof FamilyRoute
   FitnessRoute: typeof FitnessRoute
   HomeRoute: typeof HomeRoute
@@ -240,6 +253,13 @@ declare module '@tanstack/react-router' {
       path: '/alerts'
       fullPath: '/alerts'
       preLoaderRoute: typeof AlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delivery': {
+      id: '/delivery'
+      path: '/delivery'
+      fullPath: '/delivery'
+      preLoaderRoute: typeof DeliveryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/family': {
@@ -320,6 +340,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityRoute: ActivityRoute,
   AdminRoute: AdminRoute,
   AlertsRoute: AlertsRoute,
+  DeliveryRoute: DeliveryRoute,
   FamilyRoute: FamilyRoute,
   FitnessRoute: FitnessRoute,
   HomeRoute: HomeRoute,
