@@ -8,7 +8,9 @@ export function TermsConsent({ role, busy, onAccept, onBack }: { role: Role; bus
     ["terms", "I have read and agree to the WellNest Terms & Conditions."],
     ...(role === "senior"
       ? [["health", "I consent to WellNest storing my health information and any medical records I upload, only to suggest suitable meals and sessions."], ["withdraw", "I understand I can withdraw consent, delete my health data, or delete my account at any time."]]
-      : [["privacy", "I will only view a senior’s bookings after they share their mobile number with me, and I respect their privacy."]]),
+      : role === "partner"
+        ? [["licence", "The licence and business details I submit are true. My listing appears to customers only after WellNest verifies them."], ["privacy", "I will use customers’ names, orders and addresses only to deliver the service they booked."]]
+        : [["privacy", "I will only view a senior’s bookings after they share their mobile number with me, and I respect their privacy."]]),
   ] as const;
   const [ok, setOk] = useState<Record<string, boolean>>({});
   return (

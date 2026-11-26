@@ -1,13 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
-  type Booking, type DeliveryPartner, type PartnerKind, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails,
+  type Booking, type DeliveryPartner, type PartnerKind, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails, type PartnerType,
 } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
 import { cloudMessage, loadCloud, planWrites, runOp, watchCloud, type Op, type Shared } from './cloud';
 import { demoPhoneSignIn } from './cloud.functions';
 import { toast } from 'sonner';
+import { servesPincode, type Address } from './pincode';
+import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
 export interface DB {
@@ -35,9 +37,9 @@ interface Ctx {
   /** Permanently removes the signed-in account after the approval code was checked. */
   deleteAccount: () => string | null;
   /** Records consent and health from the registration flow for a new senior. */
-  completeOnboarding: (h: HealthProfile, address: string) => void;
+  completeOnboarding: (h: HealthProfile, address: Address) => void;
   giveConsent: () => void;
-  saveHealth: (h: HealthProfile, address?: string) => void;
+  saveHealth: (h: HealthProfile, address?: Address) => void;
   deleteHealthData: () => void;
   linkSenior: (phone: string) => Promise<string | null>;
   setActiveSenior: (id: string) => void;
@@ -70,6 +72,15 @@ interface Ctx {
   /** Signed in with a real emailed code but has not finished registering yet. */
   pendingCloud: { id: string; email: string; name?: string } | null;
   completeCloudRegistration: (p: { name: string; username: string; role: Role; age?: number; city?: string }) => Promise<string | null>;
+  /** Partner accounts: their own listing (pending, approved or rejected), if submitted. */
+  myListing: { kind: PartnerType; listing: Listing } | null;
+  /** Partner: submit or update the listing. It always goes back to "pending" until an admin approves it. */
+  submitPartner: (kind: PartnerType, a: PartnerApplication) => Promise<string | null>;
+  /** Approved kitchen partner: add or edit a dish (health tags stay admin-managed). */
+  savePartnerDish: (d: Pick<Dish, "name" | "price" | "diet" | "jain" | "desc"> & { id?: string }) => Promise<string | null>;
+  deletePartnerDish: (id: string) => Promise<string | null>;
+  /** Admin: approve or reject a partner application. */
+  reviewPartner: (kind: PartnerType, id: string, approve: boolean, note?: string) => string | null;
 }
 const C = createContext<Ctx | null>(null);
 
@@ -184,6 +195,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     : null;
 
   const update = useCallback((fn: (d: DB) => DB) => setDb((d) => fn(d)), []);
+  const myListing = me?.role === "partner" ? findMyListing(db, me.id) : null;
   const patchMe = (fn: (u: User) => User) =>
     update((d) => ({ ...d, users: d.users.map((u) => (u.id === d.currentUserId ? fn(u) : u)) }));
 
@@ -285,11 +297,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     completeCloudRegistration: async (p) => {
       if (!pendingCloud) return "Please verify your email first.";
-      if (p.role !== "senior" && p.role !== "family") return "Only Senior or Family accounts can be registered.";
+      if (p.role !== "senior" && p.role !== "family" && p.role !== "partner") return "Only Senior, Family or Partner accounts can be registered.";
       const username = p.username.trim().toLowerCase();
       const { error } = await supabase.from("profiles").update({ name: p.name.trim(), username, age: p.age ?? null, city: p.city?.trim() || null }).eq("id", pendingCloud.id);
       if (error) return error.code === "23505" ? "That username is taken. Please choose another." : "Could not save your details.";
-      const { error: rErr } = await supabase.rpc("choose_role", { _role: p.role });
+      const { error: rErr } = await supabase.rpc("choose_role", { _role: p.role as "senior" | "family" }); // "partner" is added by migration 0003
       if (rErr && !/already set/i.test(rErr.message)) return "Could not save your role.";
       await adoptCloudUser(pendingCloud.id, pendingCloud.email);
       return null;
@@ -301,7 +313,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return u;
     },
     register: (phone, name, role, extra = {}) => {
-      if (role !== "senior" && role !== "family") throw new Error("Only Senior or Family accounts can be registered.");
+      if (role !== "senior" && role !== "family" && role !== "partner") throw new Error("Only Senior, Family or Partner accounts can be registered.");
       const email = extra.email?.trim().toLowerCase() || undefined;
       const existing = db.users.find((u) => (phone && u.phone === phone) || (email && u.email?.toLowerCase() === email));
       if (existing) return existing;
@@ -345,11 +357,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       void supabase.auth.signOut(); setPendingCloud(null);
       return null;
     },
-    completeOnboarding: (h, address) => patchMe((u) => u.role === "senior" ? { ...u, consent: { given: true, at: new Date().toISOString() }, health: h, address: address.trim() || u.address } : u),
+    completeOnboarding: (h, a) => patchMe((u) => u.role === "senior" ? { ...u, consent: { given: true, at: new Date().toISOString() }, health: h, address: a.line.trim() || u.address, pincode: a.pincode, city: a.city.trim() || u.city, state: a.state } : u),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
     saveHealth: (h, address) => {
       if (!senior?.consent?.given || !canManageSenior(me, senior)) return;
-      update((d) => ({ ...d, users: d.users.map((u) => u.id === senior.id ? { ...u, health: h, address: address ?? u.address } : u) }));
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === senior.id ? { ...u, health: h, ...(address ? { address: address.line, pincode: address.pincode, city: address.city, state: address.state } : {}) } : u) }));
     },
     deleteHealthData: () => {
       if (me?.role !== "senior") return;
@@ -384,6 +396,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!senior.consent?.given || !senior.health) throw new Error("The senior must complete their consent and health profile first.");
       const partners = b.type === "fitness" ? db.coaches : b.type === "meal" ? db.kitchens : db.pharmacies;
       if (!partners.some((p) => p.id === b.partnerId && p.verified)) throw new Error("This partner is not available.");
+      const partner = partners.find((p) => p.id === b.partnerId)!;
+      const homeService = !(b.type === "fitness" && b.videoUrl);
+      if (homeService && !senior.pincode) throw new Error("Add the senior's pincode to their address first.");
+      if (homeService && !servesPincode(partner, senior.pincode)) throw new Error(`${partner.name} does not serve pincode ${senior.pincode}.`);
       if (new Date(b.when) <= new Date()) throw new Error("Please select a future time.");
       if (b.type === "fitness" && db.bookings.some((existing) => existing.type === "fitness" && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
       const sid = senior.id;
@@ -410,7 +426,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toggleVerify: (kind, id) => {
       if (me?.role !== "admin") return;
       update((d) => {
-        const next = { ...d, [kind]: (d[kind] as { id: string; verified: boolean }[]).map((x) => (x.id === id ? { ...x, verified: !x.verified } : x)) } as DB;
+        const next = { ...d, [kind]: (d[kind] as { id: string; verified: boolean; status?: string }[]).map((x) => (x.id === id ? { ...x, verified: !x.verified, ...(x.status && !x.verified ? { status: "approved" } : {}) } : x)) } as DB;
         if (kind !== "delivery" || next.delivery.find((x) => x.id === id)?.verified) return next;
         // An unverified rider is taken off every open order; each order moves to a verified rider if one exists.
         let bookings = next.bookings;
@@ -429,6 +445,69 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     },
     toggleDishTag: (dishId, tag) => { if (me?.role === "admin") update((d) => ({ ...d, dishes: d.dishes.map((x) => (x.id === dishId ? { ...x, tags: x.tags.includes(tag) ? x.tags.filter((t) => t !== tag) : [...x.tags, tag] } : x)) })); },
+    myListing,
+    submitPartner: async (kind, a) => {
+      if (me?.role !== "partner") return "Only partner accounts can apply.";
+      const problem = applicationProblem(kind, a);
+      if (problem) return problem;
+      if (myListing && myListing.kind !== kind) return `Your account already has a ${myListing.kind} listing.`;
+      const fields = listingFields(kind, a);
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("submit_partner", { _kind: kind, _data: fields });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      const key = PARTNER_KEY[kind];
+      const id = myListing?.listing.id ?? uid(kind.slice(0, 2));
+      const listing = { ...fields, id, ownerId: me.id, verified: false, status: "pending", appliedAt: new Date().toISOString(), ...(kind === "coach" ? { rating: 0 } : {}), ...(myListing?.listing.photo ? { photo: myListing.listing.photo } : {}) };
+      update((d) => {
+        const list = d[key] as Listing[];
+        return { ...d, [key]: list.some((x) => x.id === id) ? list.map((x) => (x.id === id ? listing : x)) : [...list, listing] } as DB;
+      });
+      return null;
+    },
+    savePartnerDish: async (dish) => {
+      if (myListing?.kind !== "kitchen" || !myListing.listing.verified) return "Only an approved kitchen can manage dishes.";
+      const problem = dishProblem(dish);
+      if (problem) return problem;
+      const clean = { name: dish.name.trim(), price: Math.round(dish.price), diet: dish.diet, jain: !!dish.jain, desc: dish.desc.trim() };
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("partner_save_dish", { _data: { ...clean, id: dish.id } });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      const kitchenId = myListing.listing.id;
+      update((d) => {
+        const old = d.dishes.find((x) => x.id === dish.id && x.kitchenId === kitchenId);
+        const next: Dish = { ...clean, id: old?.id ?? uid("di"), kitchenId, tags: old?.tags ?? [], ...(old?.nutrition ? { nutrition: old.nutrition } : {}) };
+        return { ...d, dishes: old ? d.dishes.map((x) => (x.id === old.id ? next : x)) : [...d.dishes, next] };
+      });
+      return null;
+    },
+    deletePartnerDish: async (id) => {
+      if (myListing?.kind !== "kitchen") return "Only kitchens manage dishes.";
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("partner_delete_dish", { _id: id });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      update((d) => ({ ...d, dishes: d.dishes.filter((x) => !(x.id === id && x.kitchenId === myListing.listing.id)) }));
+      return null;
+    },
+    reviewPartner: (kind, id, approve, note) => {
+      if (me?.role !== "admin") return "Only administrators can verify partners.";
+      if (!approve && !note?.trim()) return "Give the partner a reason so they can fix their application.";
+      const key = PARTNER_KEY[kind];
+      if (!(db[key] as Listing[]).some((x) => x.id === id)) return "This application no longer exists.";
+      update((d) => ({ ...d, [key]: (d[key] as Listing[]).map((x) => (x.id === id ? { ...x, verified: approve, status: approve ? "approved" : "rejected", reviewNote: note?.trim() || undefined } : x)) }) as DB);
+      return null;
+    },
     resetDemo: () => {
       if (me?.role !== "admin") return;
       if (cloudUserId) { toast.info("Demo data lives in Lovable Cloud now and is shared by everyone, so it cannot be reset from here."); return; }

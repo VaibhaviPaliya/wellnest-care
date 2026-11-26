@@ -5,6 +5,8 @@ import { BadgeCheck, FileUp, Check } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { partnersFor } from "@/lib/partners";
+import { ServiceArea } from "@/components/ServiceArea";
 import { PartnerAvatar } from '@/components/PartnerAvatar';
 import { RatingBadge } from '@/components/RatingBadge';
 import { sessionDate } from "@/lib/booking-rules";
@@ -34,7 +36,7 @@ function Pharmacy() {
   const [day, setDay] = useState(1);
   const [slot, setSlot] = useState("09:00");
   const [picked, setPicked] = useState<string[]>([]);
-  const pharmacies = db.pharmacies.filter((p) => p.verified);
+  const pharmacies = partnersFor(db.pharmacies, "pharmacy", senior?.pincode);
   const [ph, setPh] = useState(pharmacies[0]?.id ?? "");
   const [pay, setPay] = useState(false);
 
@@ -61,6 +63,7 @@ function Pharmacy() {
   return (
     <>
       <PageTitle title="Medicines & Delivery" sub="Only licensed, verified pharmacies. Pharmacist checks every prescription." />
+      <ServiceArea what="pharmacies" />
       <div className="flex gap-2">
         <Button variant="care" size="care" className="chip" aria-pressed={mode === "upload"} onClick={() => setMode("upload")}>Upload prescription</Button>
         <Button variant="care" size="care" className="chip" aria-pressed={mode === "select"} onClick={() => setMode("select")}>Select medicines</Button>
@@ -114,7 +117,7 @@ function Pharmacy() {
               </li>
             ))}
           </ul>
-          {pharmacies.length === 0 && <p className="mt-3 text-muted-foreground">No verified pharmacies available.</p>}
+          {pharmacies.length === 0 && <p className="mt-3 text-muted-foreground">{senior?.pincode ? `No verified pharmacy delivers to ${senior.pincode} yet.` : "Add a pincode to see pharmacies near you."}</p>}
           <h3 className="mt-5 text-base font-semibold">3. Delivery date & time</h3>
           <div className="mt-2 flex flex-wrap gap-2">{[0, 1, 2, 3].map((i) => <Button variant="care" size="care" key={i} className="chip" aria-pressed={day === i} onClick={() => { setDay(i); setSlot(["09:00", "13:00", "18:00"].find((s) => sessionDate(i, s) > new Date()) ?? "09:00"); }}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : sessionDate(i, "09:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</Button>)}</div>
           <div className="mt-2 flex flex-wrap gap-2">{["09:00", "13:00", "18:00"].map((s) => <Button variant="care" size="care" key={s} className="chip" aria-pressed={slot === s} disabled={sessionDate(day, s) <= new Date()} onClick={() => setSlot(s)}>{s}</Button>)}</div>

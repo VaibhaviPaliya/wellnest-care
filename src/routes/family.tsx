@@ -6,6 +6,7 @@ import { Link2, UserRound } from "lucide-react";
 import { PageTitle, Shell } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { CONDITION_LABEL, DEMO_OTP } from "@/lib/seed";
+import { addressOf } from "@/lib/pincode";
 import { HealthForm } from "@/components/HealthForm";
 
 export const Route = createFileRoute("/family")({
@@ -48,7 +49,7 @@ function Family() {
       </ul>
       {senior?.consent?.given && <section className="mt-6 max-w-2xl">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{senior.name.split(" ")[0]}’s health profile</h2><Button variant="care" size="care" className="btn btn-outline" onClick={() => setEditing(!editing)}>{editing ? "Close" : "Edit profile"}</Button></div>
-        {editing && <HealthForm key={senior.id} initial={senior.health} initialAddress={senior.address} submitLabel="Save profile" onSubmit={(health, address) => { saveHealth(health, address); setEditing(false); toast.success("Profile updated for your senior."); }} />}
+        {editing && <HealthForm key={senior.id} initial={senior.health} initialAddress={addressOf(senior)} submitLabel="Save profile" onSubmit={(health, address) => { saveHealth(health, address); setEditing(false); toast.success("Profile updated for your senior."); }} />}
       </section>}
       <div className="surface mt-6 max-w-xl p-6">
         <h2 className="flex items-center gap-2 text-lg font-bold"><Link2 className="h-6 w-6" />Link a senior</h2>

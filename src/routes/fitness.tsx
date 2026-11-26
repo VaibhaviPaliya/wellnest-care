@@ -5,6 +5,9 @@ import { BadgeCheck, Home, Monitor, Star } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { coachModesFor } from "@/lib/pincode";
+import { partnersFor } from "@/lib/partners";
+import { ServiceArea } from "@/components/ServiceArea";
 import { PartnerAvatar } from '@/components/PartnerAvatar';
 import type { Coach } from "@/lib/seed";
 import { isSlotAvailable, sessionDate } from "@/lib/booking-rules";
@@ -37,14 +40,16 @@ function Fitness() {
   const [sel, setSel] = useState<{ coach: Coach; slot: string; day: number; mode: "home" | "online"; kind: string } | null>(null);
   const [pay, setPay] = useState(false);
 
-  const list = db.coaches.filter((c) => c.verified && (type === "all" || c.types.includes(type)) && (mode === "all" || c.mode.includes(mode)) && (level === "all" || c.level === level));
+  // Online classes work anywhere; home visits only where the coach serves the senior's pincode.
+  const modesOf = (c: Coach) => coachModesFor(c, senior?.pincode);
+  const list = partnersFor(db.coaches, "coach", senior?.pincode).filter((c) => (type === "all" || c.types.includes(type)) && (mode === "all" || modesOf(c).includes(mode)) && (level === "all" || c.level === level));
   const days = [0, 1, 2, 3].map((i) => { const d = new Date(); d.setDate(d.getDate() + i); return d; });
 
   const choose = (coach: Coach) => {
     const day = days.findIndex((_, i) => coach.slots.some((slot) => isSlotAvailable(i, slot, coach.id, db.bookings)));
     const slot = coach.slots.find((slot) => isSlotAvailable(day, slot, coach.id, db.bookings));
     if (day < 0 || !slot) return toast.error("No available slots in the next four days.");
-    const sessionMode = mode !== "all" && coach.mode.includes(mode) ? mode : coach.mode[0];
+    const sessionMode = mode !== "all" && modesOf(coach).includes(mode) ? mode : modesOf(coach)[0];
     setSel({ coach, day, slot, mode: sessionMode, kind: type !== "all" && coach.types.includes(type) ? type : coach.types[0] });
   };
   const available = !!sel && isSlotAvailable(sel.day, sel.slot, sel.coach.id, db.bookings);
@@ -58,6 +63,7 @@ function Fitness() {
   return (
     <>
       <PageTitle title="Fitness Coaches" sub="Every coach is background-verified and trained for seniors." />
+      <ServiceArea what="home-visit coaches" />
       <FitnessExtras />
       <div className="surface space-y-3 p-4">
         <Filter label="Type" value={type} set={setType} opts={[["all", "All"], ["yoga", "Yoga"], ["mobility", "Mobility"], ["meditation", "Meditation"]]} />
@@ -80,12 +86,12 @@ function Fitness() {
             <div className="mt-3 flex flex-wrap gap-2">
               {c.types.map((t) => <span key={t} className="tag capitalize">{t}</span>)}
               <span className="tag capitalize">{c.level}</span>
-              {c.mode.map((m) => <span key={m} className="tag">{m === "home" ? <><Home className="mr-1 h-3.5 w-3.5" />Home</> : <><Monitor className="mr-1 h-3.5 w-3.5" />Online</>}</span>)}
+              {modesOf(c).map((m) => <span key={m} className="tag">{m === "home" ? <><Home className="mr-1 h-3.5 w-3.5" />Home</> : <><Monitor className="mr-1 h-3.5 w-3.5" />Online</>}</span>)}
             </div>
             <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={() => choose(c)}>Choose a slot</Button>
           </li>
         ))}
-        {list.length === 0 && <p className="surface p-5 text-base">No coaches match. Try “Any”.</p>}
+        {list.length === 0 && <p className="surface p-5 text-base">{mode === "home" && senior?.pincode ? `No verified coach makes home visits in ${senior.pincode} yet. Try “Online live”.` : "No coaches match. Try “Any”."}</p>}
       </ul>
 
       {sel && !pay && (
@@ -96,7 +102,7 @@ function Fitness() {
             <p className="mb-2 mt-4 font-bold">Session</p>
             <div className="flex flex-wrap gap-2">{sel.coach.types.map((t) => <Button variant="care" size="care" key={t} className="chip capitalize" aria-pressed={sel.kind === t} onClick={() => setSel({ ...sel, kind: t })}>{t}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">How</p>
-            <div className="flex flex-wrap gap-2">{sel.coach.mode.map((m) => <Button variant="care" size="care" key={m} className="chip" aria-pressed={sel.mode === m} onClick={() => setSel({ ...sel, mode: m })}>{m === "home" ? "Home visit" : "Online live"}</Button>)}</div>
+            <div className="flex flex-wrap gap-2">{modesOf(sel.coach).map((m) => <Button variant="care" size="care" key={m} className="chip" aria-pressed={sel.mode === m} onClick={() => setSel({ ...sel, mode: m })}>{m === "home" ? "Home visit" : "Online live"}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">Day</p>
             <div className="flex flex-wrap gap-2">{days.map((d, i) => <Button variant="care" size="care" key={i} className="chip" aria-pressed={sel.day === i} disabled={!sel.coach.slots.some((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings))} onClick={() => setSel({ ...sel, day: i, slot: sel.coach.slots.find((s) => isSlotAvailable(i, s, sel.coach.id, db.bookings)) ?? "" })}>{i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric" })}</Button>)}</div>
             <p className="mb-2 mt-4 font-bold">Time</p>

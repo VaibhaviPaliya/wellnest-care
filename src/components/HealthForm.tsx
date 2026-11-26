@@ -4,14 +4,17 @@ import { toast } from "sonner";
 import { FileText, X } from "lucide-react";
 import { MetricsFields } from './CareFeatures';
 import { calorieTarget } from '@/lib/care';
+import { AddressFields } from "./AddressFields";
+import { addressProblem, EMPTY_ADDRESS, type Address } from "@/lib/pincode";
 import { CONDITION_LABEL, DIET_LABEL, MOBILITY_LABEL, type Condition, type DietPref, type HealthProfile, type MedicalRecord, type Mobility } from "@/lib/seed";
 
-export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: { initial?: HealthProfile; initialAddress?: string; submitLabel: string; onSubmit: (h: HealthProfile, address: string) => void }) {
+export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: { initial?: HealthProfile; initialAddress?: Address; submitLabel: string; onSubmit: (h: HealthProfile, address: Address) => void }) {
   const [conditions, setConditions] = useState<Condition[]>(initial?.conditions ?? []);
   const [diet, setDiet] = useState<DietPref>(initial?.diet ?? "veg");
   const [mobility, setMobility] = useState<Mobility>(initial?.mobility ?? "independent");
   const [allergies, setAllergies] = useState(initial?.allergies ?? "");
-  const [address, setAddress] = useState(initialAddress ?? "");
+  const [address, setAddress] = useState<Address>(initialAddress ?? EMPTY_ADDRESS);
+  const addrProblem = addressProblem(address);
   const [records, setRecords] = useState<MedicalRecord[]>(initial?.records ?? []);
   const [history, setHistory] = useState(initial?.history ?? "");
   const [metrics, setMetrics] = useState(initial?.metrics);
@@ -65,11 +68,13 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
         <label htmlFor="hist" className="mb-2 mt-4 block font-bold">Medical history notes (optional)</label>
         <textarea id="hist" rows={2} className="field" value={history} onChange={(e) => setHistory(e.target.value)} placeholder="e.g. Knee surgery 2019, on Metformin since 2020" />
       </fieldset>
-      <div>
-        <label htmlFor="addr" className="mb-2 block text-base font-bold">Home address for visits & delivery</label>
-        <textarea id="addr" rows={2} className="field" value={address} onChange={(e) => setAddress(e.target.value)} />
-      </div>
-      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!address.trim() || (!!metrics && !calorieTarget(metrics))} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, metrics, history: history.trim() || undefined }, address.trim())}>{submitLabel}</Button>
+      <fieldset>
+        <legend className="mb-1 text-base font-bold">Home address for visits & delivery</legend>
+        <p className="mb-3 text-sm text-muted-foreground">The pincode decides which pharmacies, kitchens and home-visit coaches are shown.</p>
+        <AddressFields value={address} onChange={setAddress} />
+        {addrProblem && (address.line || address.pincode) && <p className="mt-2 text-sm text-destructive">{addrProblem}</p>}
+      </fieldset>
+      <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!!addrProblem || (!!metrics && !calorieTarget(metrics))} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, metrics, history: history.trim() || undefined }, { ...address, line: address.line.trim(), city: address.city.trim() })}>{submitLabel}</Button>
     </div>
   );
 }

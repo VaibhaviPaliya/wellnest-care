@@ -28,12 +28,14 @@ export const alertId = (bookingId: string) => `alert:${bookingId}`;
 
 type CloudPerson = Database["public"]["Functions"]["visible_people"]["Returns"][number];
 // Generated RPC types omit SQL nullability for optional profile fields.
-type Person = { [K in keyof CloudPerson]: CloudPerson[K] | null } & Pick<CloudPerson, "id" | "name">;
+// pincode/state come from migration 0003 and may be missing until the types are regenerated.
+type Person = { [K in keyof CloudPerson]: CloudPerson[K] | null } & Pick<CloudPerson, "id" | "name"> & { pincode?: string | null; state?: string | null };
 export function toUser(p: Person): User {
   return {
-    id: p.id, name: p.name, phone: p.phone ?? "", role: p.role ?? "family",
+    id: p.id, name: p.name, phone: p.phone ?? "", role: (p.role ?? "family") as User["role"],
     username: p.username ?? undefined, email: p.email && !isPhoneEmail(p.email) ? p.email : undefined,
     age: p.age ?? undefined, city: p.city ?? undefined, address: p.address ?? undefined,
+    pincode: p.pincode ?? undefined, state: p.state ?? undefined,
     consent: p.consent_at ? { given: true, at: p.consent_at } : undefined,
     health: (p.health ?? undefined) as HealthProfile | undefined,
     linkedSeniorIds: p.linked_senior_ids ?? [],
@@ -73,7 +75,7 @@ export async function loadCloud(client: Client): Promise<Shared> {
 
 export type Op =
   | { t: "profile"; values: Database["public"]["Tables"]["profiles"]["Update"] }
-  | { t: "seniorProfile"; senior: string; health: HealthProfile | null; address: string | null }
+  | { t: "seniorProfile"; senior: string; health: HealthProfile | null; address: string | null; pincode: string | null; city: string | null; state: string | null }
   | { t: "unlink"; family: string; senior: string }
   | { t: "catalog"; rows: { kind: string; id: string; ord: number; data: Json }[] }
   | { t: "insert"; table: "bookings" | "notices" | "care_items"; rows: Record<string, unknown>[] }
@@ -110,13 +112,14 @@ export function planWrites(prev: DB, next: DB, meId: string): Op[] {
     const old = prev.users.find((x) => x.id === u.id);
     if (!old) continue;
     if (u.id === meId) {
-      const pick = (x: User) => [x.name, x.username, x.phone, x.age, x.city, x.address, x.consent?.at, x.health];
+      const pick = (x: User) => [x.name, x.username, x.phone, x.age, x.city, x.address, x.pincode, x.state, x.consent?.at, x.health];
       if (!same(pick(old), pick(u))) ops.push({ t: "profile", values: {
         name: u.name, username: u.username ?? null, phone: u.phone || null, age: u.age ?? null, city: u.city ?? null,
         address: u.address ?? null, consent_at: u.consent?.at ?? null, health: json(u.health ?? null),
-      } });
-    } else if (u.role === "senior" && (!same(old.health, u.health) || old.address !== u.address)) {
-      ops.push({ t: "seniorProfile", senior: u.id, health: u.health ?? null, address: u.address ?? null });
+        pincode: u.pincode ?? null, state: u.state ?? null,
+      } as Database["public"]["Tables"]["profiles"]["Update"] });
+    } else if (u.role === "senior" && (!same(old.health, u.health) || old.address !== u.address || old.pincode !== u.pincode || old.city !== u.city || old.state !== u.state)) {
+      ops.push({ t: "seniorProfile", senior: u.id, health: u.health ?? null, address: u.address ?? null, pincode: u.pincode ?? null, city: u.city ?? null, state: u.state ?? null });
     }
     for (const s of old.linkedSeniorIds) if (!u.linkedSeniorIds.includes(s)) ops.push({ t: "unlink", family: u.id, senior: s });
   }
@@ -162,6 +165,9 @@ export async function runOp(client: Client, op: Op): Promise<void> {
       // SQL accepts NULL to clear the address; keep it rather than replacing it with an empty string.
       const args = { _senior: op.senior, _health: json(op.health), _address: op.address };
       fail((await client.rpc("save_senior_profile", args as Database["public"]["Functions"]["save_senior_profile"]["Args"])).error);
+      // save_senior_location is added by migration 0003 (not yet in the generated types).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fail((await (client as any).rpc("save_senior_location", { _senior: op.senior, _pincode: op.pincode, _city: op.city, _state: op.state })).error);
       return;
     }
     case "unlink": fail((await client.from("family_links").delete().eq("family_id", op.family).eq("senior_id", op.senior)).error); return;

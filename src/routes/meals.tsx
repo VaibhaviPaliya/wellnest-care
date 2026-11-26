@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { partnersFor } from "@/lib/partners";
+import { ServiceArea } from "@/components/ServiceArea";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { BadgeCheck, Minus, Plus, Sparkles } from "lucide-react";
@@ -38,7 +40,7 @@ function Meals() {
   const h = senior?.health;
   if (!h || !senior?.consent?.given) return <p className="surface p-5 text-base">This senior needs to complete their consent and health profile first. <Link to="/home" className="text-primary underline">Go home</Link></p>;
 
-  const kitchens = db.kitchens.filter((k) => k.verified);
+  const kitchens = partnersFor(db.kitchens, "kitchen", senior?.pincode);
   const target = h.metrics ? calorieTarget(h.metrics) : null;
   const dishes = db.dishes.filter((d) => kitchens.some((k) => k.id === d.kitchenId && (source === 'all' || k.kind === source)) && isSuitable(d, h) && (kitchen === "all" || d.kitchenId === kitchen)).sort((a,b) => sort === 'calories' && target ? Math.abs((a.nutrition?.calories ?? Infinity) - target / 3) - Math.abs((b.nutrition?.calories ?? Infinity) - target / 3) : 0);
   const items = Object.entries(cart).filter(([, q]) => q > 0).flatMap(([id, qty]) => {
@@ -58,6 +60,7 @@ function Meals() {
   return (
     <>
       <PageTitle title="Health-Suitable Meals" sub={`Showing only dishes that suit ${senior.name.split(" ")[0]}: ${[...h.conditions.map((c) => CONDITION_LABEL[c]), DIET_LABEL[h.diet]].join(" · ")}`} />
+      <ServiceArea what="kitchens" />
       <MealExtras />
       <div className="mb-4 flex flex-wrap gap-3"><label className="font-bold">Meal source<select className="field" value={source} onChange={e => { setSource(e.target.value as typeof source); setKitchen('all'); }}><option value="all">All sources</option><option value="dabba">Local dabba kitchens</option><option value="restaurant">Restaurants</option></select></label><label className="font-bold">Order by<select className="field" value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="default">Kitchen menu</option><option value="calories" disabled={!target}>Closest to one-third daily estimate</option></select></label></div>
       <div className="mb-5 flex flex-wrap gap-2">
@@ -90,7 +93,7 @@ function Meals() {
               </div>
             </li>
           ))}
-          {dishes.length === 0 && <p className="surface p-5 text-base sm:col-span-2">No dishes match this health profile right now.</p>}
+          {dishes.length === 0 && <p className="surface p-5 text-base sm:col-span-2">{kitchens.length === 0 ? (senior.pincode ? `No verified kitchen delivers to ${senior.pincode} yet.` : "Add a pincode to see kitchens that deliver to you.") : "No dishes match this health profile right now."}</p>}
         </ul>
 
         <aside className="surface h-fit p-5 lg:sticky lg:top-24">

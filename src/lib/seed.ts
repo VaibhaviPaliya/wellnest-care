@@ -1,4 +1,4 @@
-export type Role = "senior" | "family" | "admin";
+export type Role = "senior" | "family" | "admin" | "partner";
 export type Condition = "diabetes" | "high_bp" | "heart" | "chewing";
 export type DietTag = "low_sugar" | "low_sodium" | "low_oil" | "soft_food" | "high_fiber" | "high_protein";
 export type DietPref = "veg" | "non_veg" | "eggetarian" | "jain";
@@ -24,27 +24,46 @@ export interface User {
   consent?: { given: boolean; at: string };
   health?: HealthProfile;
   linkedSeniorIds: string[];
+  /** House / street line. City is `city`; pincode and state are kept separately for partner filtering. */
   address?: string;
+  pincode?: string;
+  state?: string;
   username?: string;
   email?: string;
   age?: number;
   city?: string;
 }
 export interface ProfileDetails { name: string; username: string; email?: string; phone?: string; age?: number; city?: string; }
-export interface Coach {
+/** Fields shared by pharmacies, kitchens and coaches, including ones who registered themselves. */
+export interface PartnerListing {
+  /** Partner account that owns this listing (self-registered partners only). */
+  ownerId?: string;
+  /** Self-registered partners start "pending"; only approved (verified) listings are shown to customers. */
+  status?: "pending" | "approved" | "rejected";
+  reviewNote?: string;
+  appliedAt?: string;
+  address?: import("./pincode").Address;
+  /** Pincodes the partner delivers to or visits. Customers only see partners serving their pincode. */
+  servicePincodes?: string[];
+  contactPhone?: string;
+  /** Drug licence (pharmacy), FSSAI number (kitchen) or certification (coach). */
+  licence?: string;
+}
+export type PartnerType = "pharmacy" | "kitchen" | "coach";
+export interface Coach extends PartnerListing {
   id: string; name: string; types: ("yoga" | "mobility" | "meditation")[];
   level: "gentle" | "moderate"; mode: ("home" | "online")[]; price: number;
   slots: string[]; verified: boolean; bio: string; rating: number; years: number;
   /** Optional uploaded photo (small data URL). Without one an illustrated avatar is shown. */
   photo?: string;
 }
-export interface Kitchen { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; photo?: string; }
+export interface Kitchen extends PartnerListing { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; photo?: string; }
 export interface Dish {
   id: string; kitchenId: string; name: string; price: number;
   diet: "veg" | "non_veg" | "egg"; jain: boolean; tags: DietTag[]; desc: string;
   nutrition?: import('./care').Nutrition;
 }
-export interface Pharmacy { id: string; name: string; area: string; verified: boolean; eta: string; photo?: string; }
+export interface Pharmacy extends PartnerListing { id: string; name: string; area: string; verified: boolean; eta: string; photo?: string; }
 /** Delivery staff for meal and medicine orders. Only verified staff are ever assigned. */
 export interface DeliveryPartner { id: string; name: string; vehicle: string; area: string; verified: boolean; photo?: string; }
 export type PartnerKind = "coach" | "kitchen" | "pharmacy" | "delivery";
@@ -87,28 +106,28 @@ export const seedUsers: User[] = [
   { id: "u-senior-1", phone: "9876543210", name: "Kamala Iyer", role: "senior",
     consent: { given: true, at: d(-10, 10) },
     health: { conditions: ["diabetes", "high_bp"], diet: "veg", mobility: "assisted", allergies: "" },
-    linkedSeniorIds: [], address: "12, 4th Cross, Jayanagar, Bengaluru" },
+    linkedSeniorIds: [], address: "12, 4th Cross, Jayanagar", pincode: "560011", city: "Bengaluru", state: "Karnataka" },
   { id: "u-senior-2", phone: "9876500001", name: "Harbhajan Singh", role: "senior",
     consent: { given: true, at: d(-5, 10) },
     health: { conditions: ["heart", "chewing"], diet: "non_veg", mobility: "limited", allergies: "Peanuts" },
-    linkedSeniorIds: [], address: "Sector 21, Chandigarh" },
+    linkedSeniorIds: [], address: "House 1021, Sector 21", pincode: "160022", city: "Chandigarh", state: "Chandigarh" },
   { id: "u-family-1", phone: "9123456789", name: "Arjun Iyer", role: "family", linkedSeniorIds: ["u-senior-1"] },
   { id: "u-admin-1", phone: "9999999999", name: "WellNest Admin", role: "admin", linkedSeniorIds: [] },
 ];
 
 export const seedCoaches: Coach[] = [
-  { id: "c1", name: "Meera Nair", types: ["yoga", "meditation"], level: "gentle", mode: ["home", "online"], price: 499, slots: ["07:00", "09:00", "17:00"], verified: true, bio: "Chair yoga & breathwork for seniors.", rating: 4.8, years: 12 },
-  { id: "c2", name: "Rakesh Kumar", types: ["mobility"], level: "gentle", mode: ["home"], price: 699, slots: ["08:00", "11:00", "16:00"], verified: true, bio: "Physio-trained balance & fall prevention.", rating: 4.9, years: 15 },
-  { id: "c3", name: "Ananya Rao", types: ["meditation"], level: "gentle", mode: ["online"], price: 299, slots: ["06:30", "19:00", "20:00"], verified: true, bio: "Guided calm sessions for sleep & stress.", rating: 4.7, years: 8 },
-  { id: "c4", name: "Vikram Desai", types: ["yoga", "mobility"], level: "moderate", mode: ["home", "online"], price: 599, slots: ["07:30", "10:00", "18:00"], verified: true, bio: "Strength and flexibility for active seniors.", rating: 4.6, years: 10 },
-  { id: "c5", name: "Sunil Mehta", types: ["yoga"], level: "moderate", mode: ["online"], price: 349, slots: ["06:00", "18:30"], verified: false, bio: "Awaiting background verification.", rating: 0, years: 3 },
+  { id: "c1", name: "Meera Nair", types: ["yoga", "meditation"], level: "gentle", mode: ["home", "online"], price: 499, slots: ["07:00", "09:00", "17:00"], verified: true, bio: "Chair yoga & breathwork for seniors.", rating: 4.8, years: 12, servicePincodes: ["560011", "560041", "560069", "560070", "560004"] },
+  { id: "c2", name: "Rakesh Kumar", types: ["mobility"], level: "gentle", mode: ["home"], price: 699, slots: ["08:00", "11:00", "16:00"], verified: true, bio: "Physio-trained balance & fall prevention.", rating: 4.9, years: 15, servicePincodes: ["560034", "560095", "560076", "560068", "560011"] },
+  { id: "c3", name: "Ananya Rao", types: ["meditation"], level: "gentle", mode: ["online"], price: 299, slots: ["06:30", "19:00", "20:00"], verified: true, bio: "Guided calm sessions for sleep & stress.", rating: 4.7, years: 8, servicePincodes: [] },
+  { id: "c4", name: "Vikram Desai", types: ["yoga", "mobility"], level: "moderate", mode: ["home", "online"], price: 599, slots: ["07:30", "10:00", "18:00"], verified: true, bio: "Strength and flexibility for active seniors.", rating: 4.6, years: 10, servicePincodes: ["560038", "560008", "560001", "560034"] },
+  { id: "c5", name: "Sunil Mehta", types: ["yoga"], level: "moderate", mode: ["online"], price: 349, slots: ["06:00", "18:30"], verified: false, bio: "Awaiting background verification.", rating: 0, years: 3, servicePincodes: [] },
 ];
 
 export const seedKitchens: Kitchen[] = [
-  { id: "k1", name: "Annapoorna Wellness Kitchen", area: "Jayanagar", verified: true, kind: 'dabba', customizes: true },
-  { id: "k2", name: "Gentle Bites", area: "Indiranagar", verified: true, kind: 'restaurant', customizes: true },
-  { id: "k3", name: "HeartSmart Meals", area: "Koramangala", verified: true, kind: 'restaurant', customizes: true },
-  { id: "k4", name: "Spice Street Express", area: "MG Road", verified: false },
+  { id: "k1", name: "Annapoorna Wellness Kitchen", area: "Jayanagar", verified: true, kind: 'dabba', customizes: true, servicePincodes: ["560011", "560041", "560069", "560070", "560004", "560076"] },
+  { id: "k2", name: "Gentle Bites", area: "Indiranagar", verified: true, kind: 'restaurant', customizes: true, servicePincodes: ["560038", "560008", "560001", "560034", "560095"] },
+  { id: "k3", name: "HeartSmart Meals", area: "Koramangala", verified: true, kind: 'restaurant', customizes: true, servicePincodes: ["560034", "560095", "560068", "560076", "560029", "560011"] },
+  { id: "k4", name: "Spice Street Express", area: "MG Road", verified: false, servicePincodes: [] },
 ];
 
 const dish = (id: string, kitchenId: string, name: string, price: number, diet: Dish["diet"], tags: DietTag[], desc: string, jain = false): Dish =>
@@ -149,10 +168,11 @@ export const seedDishes: Dish[] = [
 ];
 
 export const seedPharmacies: Pharmacy[] = [
-  { id: "p1", name: "Apollo Care Pharmacy", area: "Jayanagar", verified: true, eta: "45 min" },
-  { id: "p2", name: "MedPlus Health", area: "BTM Layout", verified: true, eta: "60 min" },
-  { id: "p3", name: "Jan Aushadhi Kendra", area: "Basavanagudi", verified: true, eta: "90 min" },
-  { id: "p4", name: "QuickMeds Online", area: "Unknown", verified: false, eta: "2 hrs" },
+  { id: "p1", name: "Apollo Care Pharmacy", area: "Jayanagar", verified: true, eta: "45 min", servicePincodes: ["560011", "560041", "560069", "560070"] },
+  { id: "p2", name: "MedPlus Health", area: "BTM Layout", verified: true, eta: "60 min", servicePincodes: ["560076", "560068", "560029", "560034"] },
+  { id: "p3", name: "Jan Aushadhi Kendra", area: "Basavanagudi", verified: true, eta: "90 min", servicePincodes: ["560004", "560011", "560019", "560050"] },
+  { id: "p5", name: "Chandigarh Wellness Chemist", area: "Sector 22", verified: true, eta: "40 min", servicePincodes: ["160022", "160017", "160020", "160023"] },
+  { id: "p4", name: "QuickMeds Online", area: "Unknown", verified: false, eta: "2 hrs", servicePincodes: [] },
 ];
 
 export const seedDelivery: DeliveryPartner[] = [

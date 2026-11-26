@@ -51,7 +51,7 @@ describe("WellNest care rules", () => {
 
   it("allows linked family to update a consented senior profile without storing health on the family account", async () => {
     const result = await store("9123456789");
-    act(() => result.current.saveHealth({ conditions: ["high_bp"], diet: "jain", mobility: "limited", allergies: "" }, "Demo address"));
+    act(() => result.current.saveHealth({ conditions: ["high_bp"], diet: "jain", mobility: "limited", allergies: "" }, { line: "Demo address", pincode: "560011", city: "Bengaluru", state: "Karnataka" }));
     expect(result.current.senior?.health?.diet).toBe("jain");
     expect(result.current.me?.health).toBeUndefined();
   });
@@ -187,5 +187,66 @@ describe("WellNest care rules", () => {
     act(() => { error = result.current.setPartnerPhoto("coach", "c1", "data:image/jpeg;base64,AAAA"); });
     expect(error).toBeNull();
     expect(result.current.db.coaches.find((c) => c.id === "c1")?.photo).toBe("data:image/jpeg;base64,AAAA");
+  });
+});
+
+describe("partners and pincodes", () => {
+  it("runs the partner journey: apply → pending and hidden → admin approves → bookable in its pincodes only", async () => {
+    const hook = renderHook(() => useStore(), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    act(() => { hook.result.current.register("9000000050", "Ramesh", "partner", { username: "ramesh_med" }); });
+    expect(hook.result.current.me?.role).toBe("partner");
+    let err: string | null = "x";
+    await act(async () => {
+      err = await hook.result.current.submitPartner("pharmacy", {
+        name: "Ramesh Medicals", licence: "KA-B-999", contactPhone: "9000000050",
+        address: { line: "Sector 21 market", pincode: "160022", city: "Chandigarh", state: "Chandigarh" }, servicePincodes: ["160022"],
+      });
+    });
+    expect(err).toBeNull();
+    const mine = hook.result.current.myListing!;
+    expect(mine.kind).toBe("pharmacy");
+    expect(mine.listing.verified).toBe(false);
+    expect(mine.listing.status).toBe("pending");
+
+    // Admin approves
+    act(() => { hook.result.current.logout(); });
+    act(() => { hook.result.current.login("9999999999"); });
+    let review: string | null = null;
+    act(() => { review = hook.result.current.reviewPartner("pharmacy", mine.listing.id, false); });
+    expect(review).toMatch(/reason/);
+    act(() => { review = hook.result.current.reviewPartner("pharmacy", mine.listing.id, true); });
+    expect(review).toBeNull();
+    expect(hook.result.current.db.pharmacies.find((p) => p.id === mine.listing.id)?.verified).toBe(true);
+
+    // Harbhajan (160022) can order from it; Kamala (560011) cannot
+    act(() => { hook.result.current.logout(); });
+    act(() => { hook.result.current.login("9876500001"); });
+    const order = { type: "medicine" as const, title: "Medicine order", partnerId: mine.listing.id, partnerName: "Ramesh Medicals", amount: 125, when: new Date(Date.now() + 86400000).toISOString(), detail: "Metformin" };
+    act(() => { hook.result.current.createBooking(order); });
+    expect(hook.result.current.db.bookings.some((b) => b.partnerId === mine.listing.id)).toBe(true);
+    act(() => { hook.result.current.logout(); });
+    act(() => { hook.result.current.login("9876543210"); });
+    expect(() => hook.result.current.createBooking(order)).toThrow(/does not serve pincode 560011/);
+  });
+
+  it("refuses home services when the senior has no pincode, but allows online classes", async () => {
+    const result = await store();
+    act(() => result.current.saveHealth(result.current.me!.health!, { line: "12, 4th Cross", pincode: "", city: "Bengaluru", state: "Karnataka" }));
+    const when = new Date(Date.now() + 3 * 86400000); when.setHours(19, 0, 0, 0);
+    expect(() => result.current.createBooking({ type: "medicine", title: "Order", partnerId: "p1", partnerName: "Apollo", amount: 100, when: when.toISOString(), detail: "x" })).toThrow(/pincode/);
+    act(() => { result.current.createBooking({ type: "fitness", title: "Meditation · Online live", partnerId: "c3", partnerName: "Ananya Rao", amount: 299, when: when.toISOString(), detail: "gentle", videoUrl: "https://meet.jit.si/x" }); });
+    expect(result.current.db.bookings[0].partnerId).toBe("c3");
+  });
+
+  it("a partner cannot submit a second listing of another type", async () => {
+    const hook = renderHook(() => useStore(), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current.ready).toBe(true));
+    act(() => { hook.result.current.register("9000000051", "Lata", "partner", { username: "lata_k" }); });
+    const base = { name: "Lata's Kitchen", licence: "FSSAI-1", contactPhone: "9000000051", address: { line: "Main road", pincode: "560011", city: "Bengaluru", state: "Karnataka" }, servicePincodes: ["560011"] };
+    await act(async () => { await hook.result.current.submitPartner("kitchen", base); });
+    let err: string | null = null;
+    await act(async () => { err = await hook.result.current.submitPartner("pharmacy", base); });
+    expect(err).toMatch(/already has a kitchen/);
   });
 });

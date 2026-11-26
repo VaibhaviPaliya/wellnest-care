@@ -7,7 +7,7 @@ const K = "11111111-1111-1111-1111-111111111111", A = "22222222-2222-2222-2222-2
 const writes: { table: string; op: string; payload: unknown }[] = [];
 let authCb: ((event: string, session: unknown) => void) | null = null;
 const people = [
-  { id: K, name: "Kamala", username: "demo_kamala", phone: "9876543210", email: null, age: null, city: null, address: "Jayanagar", consent_at: "2026-11-01T00:00:00Z", health: { conditions: ["diabetes", "high_bp"], diet: "veg", mobility: "assisted", allergies: "" }, role: "senior", linked_senior_ids: [] },
+  { id: K, name: "Kamala", username: "demo_kamala", phone: "9876543210", email: null, age: null, city: "Bengaluru", address: "Jayanagar", pincode: "560011", state: "Karnataka", consent_at: "2026-11-01T00:00:00Z", health: { conditions: ["diabetes", "high_bp"], diet: "veg", mobility: "assisted", allergies: "" }, role: "senior", linked_senior_ids: [] },
   { id: A, name: "Arjun", username: "demo_arjun", phone: "9123456789", email: null, age: null, city: null, address: null, consent_at: null, health: null, role: "family", linked_senior_ids: [K] },
 ];
 const tables: Record<string, unknown[]> = {

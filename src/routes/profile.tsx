@@ -4,6 +4,7 @@ import { useState, type ChangeEvent, type InputHTMLAttributes } from "react";
 import { toast } from "sonner";
 import { ShieldCheck, Trash2 } from "lucide-react";
 import { PageTitle, Shell, fmtWhen } from "@/components/Shell";
+import { addressOf } from "@/lib/pincode";
 import { HealthForm } from "@/components/HealthForm";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +36,7 @@ function Profile() {
   const sub = [me.username && `@${me.username}`, me.phone && `+91 ${me.phone}`, me.email].filter(Boolean).join(" · ");
   if (me.role !== "senior") return (
     <>
-      <PageTitle title="My Profile" sub={sub} back={me.role !== "admin"} />
+      <PageTitle title="My Profile" sub={sub} back={me.role !== "admin" && me.role !== "partner"} />
       <div className="surface max-w-2xl p-6"><DetailsForm me={me} /></div>
       <DeleteAccount me={me} />
     </>
@@ -47,7 +48,7 @@ function Profile() {
       <div className="grid gap-6 md:grid-cols-[1fr_320px]">
         <div className="surface p-5">
           <h2 className="text-lg font-bold">Health profile</h2>
-          <HealthForm initial={me.health} initialAddress={me.address} submitLabel="Save changes" onSubmit={(h, a) => { saveHealth(h, a); toast.success("Saved. Meal suggestions updated."); }} />
+          <HealthForm initial={me.health} initialAddress={addressOf(me)} submitLabel="Save changes" onSubmit={(h, a) => { saveHealth(h, a); toast.success("Saved. Meal suggestions updated."); }} />
         </div>
         <div className="space-y-6">
           <div className="surface p-5">
@@ -144,7 +145,7 @@ function DetailsForm({ me }: { me: User }) {
   return (
     <>
       <h2 className="text-lg font-bold">Profile details</h2>
-      <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : "Administrator"}</p>
+      <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : me.role === "partner" ? "Partner business" : "Administrator"}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {field("name", "Full name")}
         {field("username", "Username")}

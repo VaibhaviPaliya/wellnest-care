@@ -10,5 +10,7 @@ createdb wellnest_rls_test
 psql -d wellnest_rls_test -f drizzle/tests/supabase_stub.sql      # minimal Supabase auth + roles
 psql -d wellnest_rls_test -f drizzle/migrations/0000_profiles_and_roles.sql
 psql -d wellnest_rls_test -f drizzle/migrations/0001_care_data_in_cloud.sql
+psql -d wellnest_rls_test -f drizzle/migrations/0003_partners_and_pincodes.sql
 PGDATABASE=wellnest_rls_test node drizzle/tests/rls.test.mjs
+PGDATABASE=wellnest_rls_test node drizzle/tests/partners.test.mjs   # 34 partner + pincode checks
 ```

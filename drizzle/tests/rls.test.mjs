@@ -17,8 +17,9 @@ for (const [id, ph] of [[K, '9876543210'], [H, '9876500001'], [A, '9123456789'],
   await sql`update profiles set phone = ${ph}, name = ${'P' + ph} where id = ${id}`;
 }
 for (const [id, r] of [[K, 'senior'], [H, 'senior'], [A, 'family'], [X, 'family'], [AD, 'admin']]) await sql`insert into user_roles (user_id, role) values (${id}, ${r})`;
-await sql`update profiles set consent_at = now(), health = ${sql.json({ conditions: ['diabetes'] })}, address = 'Jayanagar' where id = ${K}`;
-await sql`insert into catalog (kind, id, data) values ('coach','c1',${sql.json({ name: 'Meera', verified: true })}), ('coach','c5',${sql.json({ name: 'Sunil', verified: false })}), ('meta','demo_seeded',${sql.json({})})`;
+await sql`update profiles set consent_at = now(), health = ${sql.json({ conditions: ['diabetes'] })}, address = 'Jayanagar', pincode = '560011' where id = ${K}`;
+await sql`update profiles set pincode = '560011' where id = ${H}`;
+await sql`insert into catalog (kind, id, data) values ('coach','c1',${sql.json({ name: 'Meera', verified: true, servicePincodes: ['560011'] })}), ('coach','c5',${sql.json({ name: 'Sunil', verified: false })}), ('meta','demo_seeded',${sql.json({})})`;
 
 // linking
 ok(!(await as(K, t => t`select link_senior('9876543210')`)).ok, 'a senior cannot use link_senior');

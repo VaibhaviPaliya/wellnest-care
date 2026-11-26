@@ -9,6 +9,9 @@ import { FLOW, canCancel } from "@/lib/booking-rules";
 import { CareAdmin } from '@/components/CareFeatures';
 import { RatingBadge } from '@/components/RatingBadge';
 import { PartnerAvatar, resizePhoto } from '@/components/PartnerAvatar';
+import { LICENCE_LABEL, PARTNER_KEY, PARTNER_LABEL, type Listing } from '@/lib/partners';
+import { formatAddress } from '@/lib/pincode';
+import type { Coach, Kitchen, PartnerType, Pharmacy } from '@/lib/seed';
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -28,6 +31,7 @@ type Tab = "partners" | "dishes" | "orders" | 'care';
 
 function Admin() {
   const { db, toggleVerify, toggleDishTag, resetDemo, setStatus, setPartnerPhoto } = useStore();
+  const pendingApps = (["pharmacy", "kitchen", "coach"] as const).flatMap((kind) => (db[PARTNER_KEY[kind]] as Listing[]).filter((l) => l.ownerId && !l.verified && l.status === "pending").map((listing) => ({ kind, listing })));
   const [tab, setTab] = useState<Tab>("partners");
   const [reset, setReset] = useState(false);
   const [query, setQuery] = useState("");
@@ -50,14 +54,15 @@ function Admin() {
         {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-2xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
       </div>
       <div className="my-6 flex flex-wrap gap-2">
-        {([["partners", "Partner verification"], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
+        {([["partners", `Partner verification${pendingApps.length ? ` (${pendingApps.length} new)` : ""}`], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
       </div>
 
       {tab === "partners" && (
         <div className="space-y-6">
-          {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: c.types.join(", "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
-             ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: k.area, verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
-             ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: p.area, verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
+          <Applications apps={pendingApps} />
+          {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: [c.types.join(", "), pinsLabel(c)].filter(Boolean).join(" · "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
+             ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: [k.area, pinsLabel(k)].filter(Boolean).join(" · "), verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
+             ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: [p.area, pinsLabel(p)].filter(Boolean).join(" · "), verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
              ["delivery", "delivery", "Delivery partners", "Only verified delivery partners are assigned to meal and medicine orders. Unverifying someone moves their open orders to a verified partner.", db.delivery.map((x) => ({ id: x.id, name: x.name, sub: `${x.vehicle} · ${x.area} · ${((n) => `${n} open order${n === 1 ? "" : "s"}`)(db.bookings.filter((b) => b.deliveryId === x.id && !["completed", "cancelled"].includes(b.status)).length)}`, verified: x.verified, type: null, fallback: 0, photo: x.photo }))]] as const).map(([kind, pkind, title, note, rows]) => (
             <section key={kind} className="surface p-5">
               <h2 className="text-lg font-bold">{title}</h2>
@@ -127,5 +132,51 @@ function Admin() {
         </div>
       )}
     </>
+  );
+}
+
+const pinsLabel = (l: { servicePincodes?: string[] }) => l.servicePincodes?.length ? `Serves ${l.servicePincodes.slice(0, 4).join(", ")}${l.servicePincodes.length > 4 ? ` +${l.servicePincodes.length - 4}` : ""}` : "No service pincodes";
+
+/** New partner applications: the admin checks the licence and details, then approves or asks for changes. */
+function Applications({ apps }: { apps: { kind: PartnerType; listing: Listing }[] }) {
+  const { reviewPartner } = useStore();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  if (!apps.length) return <section className="surface p-5"><h2 className="text-lg font-bold">New partner applications</h2><p className="text-muted-foreground">No applications waiting for review.</p></section>;
+  const act = (kind: PartnerType, l: Listing, approve: boolean) => {
+    const err = reviewPartner(kind, l.id, approve, notes[l.id]);
+    if (err) toast.error(err); else toast.success(approve ? `${l.name} is verified and now visible in ${l.servicePincodes?.length ?? 0} pincodes.` : `Sent back to ${l.name} with your note.`);
+  };
+  return (
+    <section className="surface border-primary p-5">
+      <h2 className="text-lg font-bold">New partner applications · {apps.length}</h2>
+      <p className="text-muted-foreground">Check the licence number and address before approving. Approved partners appear to customers in the pincodes they serve.</p>
+      <ul className="mt-3 divide-y">
+        {apps.map(({ kind, listing: l }) => {
+          const c = l as Coach, k = l as Kitchen, p = l as Pharmacy;
+          return (
+            <li key={l.id} className="space-y-2 py-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="text-base font-bold">{l.name}</p><span className="tag">{PARTNER_LABEL[kind]}</span></div>
+              <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+                <dt className="text-muted-foreground">{LICENCE_LABEL[kind]}</dt><dd className="font-semibold">{l.licence}</dd>
+                <dt className="text-muted-foreground">Contact</dt><dd>+91 {l.contactPhone}</dd>
+                <dt className="text-muted-foreground">Address</dt><dd>{l.address ? formatAddress(l.address) : "—"}</dd>
+                <dt className="text-muted-foreground">Serves</dt><dd>{l.servicePincodes?.join(", ")}</dd>
+                {kind === "pharmacy" && <><dt className="text-muted-foreground">Delivery time</dt><dd>{p.eta}</dd></>}
+                {kind === "kitchen" && <><dt className="text-muted-foreground">Type</dt><dd>{k.kind === "restaurant" ? "Restaurant" : "Home dabba"}{k.customizes ? " · customises meals" : ""}</dd></>}
+                {kind === "coach" && <><dt className="text-muted-foreground">Coaching</dt><dd>{c.types?.join(", ")} · {c.mode?.join(" + ")} · {c.level} · ₹{c.price} · {c.years} yrs</dd></>}
+                {l.appliedAt && <><dt className="text-muted-foreground">Applied</dt><dd>{fmtWhen(l.appliedAt)}</dd></>}
+              </dl>
+              {kind === "coach" && c.bio && <p className="text-sm italic">“{c.bio}”</p>}
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="min-w-0 flex-1 basis-64 text-sm font-semibold">Note to partner (needed to reject)
+                  <input className="field mt-1" value={notes[l.id] ?? ""} onChange={(e) => setNotes({ ...notes, [l.id]: e.target.value })} placeholder="e.g. Licence number doesn’t match the store name" /></label>
+                <Button variant="care" size="care" className="btn btn-outline" onClick={() => act(kind, l, false)}>Ask for changes</Button>
+                <Button variant="care" size="care" className="btn btn-primary" onClick={() => act(kind, l, true)}>Approve</Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

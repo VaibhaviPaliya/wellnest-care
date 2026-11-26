@@ -40,8 +40,10 @@ export async function ensureDemoData(admin: Admin): Promise<void> {
     await admin.from("profiles").update({
       name: u.name, phone: u.phone, username: DEMO_USERNAMES[u.id] ?? null, address: u.address ?? null,
       consent_at: u.consent?.at ?? null, health: (u.health ?? null) as unknown as Json,
+      // pincode/state: migration 0003 columns, not yet in the generated types
+      ...({ pincode: u.pincode ?? null, state: u.state ?? null, city: u.city ?? null } as object),
     }).eq("id", id);
-    await admin.from("user_roles").upsert({ user_id: id, role: u.role }, { onConflict: "user_id,role", ignoreDuplicates: true });
+    await admin.from("user_roles").upsert({ user_id: id, role: u.role as "senior" | "family" | "admin" }, { onConflict: "user_id,role", ignoreDuplicates: true });
   }
   for (const u of seedUsers) for (const s of u.linkedSeniorIds) {
     await admin.from("family_links").upsert({ family_id: ids[u.id], senior_id: ids[s] }, { onConflict: "family_id,senior_id", ignoreDuplicates: true });

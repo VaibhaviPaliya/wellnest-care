@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
+import { addressOf } from "@/lib/pincode";
 import { HealthForm } from "@/components/HealthForm";
 
 export const Route = createFileRoute("/onboarding")({
@@ -60,7 +61,7 @@ function Onboarding() {
         <div className="surface mt-3 p-6 md:p-8">
           <h1 className="text-2xl font-bold">Your health profile</h1>
           <p className="mt-2 text-base text-muted-foreground">This helps us show only meals and sessions that are right for you.</p>
-          <HealthForm initial={me.health} initialAddress={me.address} submitLabel="Save & go to home" onSubmit={(h, addr) => { saveHealth(h, addr); nav({ to: "/home" }); }} />
+          <HealthForm initial={me.health} initialAddress={addressOf(me)} submitLabel="Save & go to home" onSubmit={(h, addr) => { saveHealth(h, addr); nav({ to: "/home" }); }} />
           <Button variant="care" size="care" className="mt-4 text-destructive underline" onClick={() => { deleteHealthData(); setAgree({ a: false, b: false }); }}>Withdraw consent</Button>
         </div>
       )}

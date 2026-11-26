@@ -18,6 +18,7 @@ import { Route as FitnessRouteImport } from './routes/fitness'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as MealsRouteImport } from './routes/meals'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RemindersRouteImport } from './routes/reminders'
@@ -68,6 +69,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PartnerRoute = PartnerRouteImport.update({
+  id: '/partner',
+  path: '/partner',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PharmacyRoute = PharmacyRouteImport.update({
   id: '/pharmacy',
   path: '/pharmacy',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/meals': typeof MealsRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner': typeof PartnerRoute
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/meals': typeof MealsRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner': typeof PartnerRoute
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/meals': typeof MealsRoute
   '/onboarding': typeof OnboardingRoute
+  '/partner': typeof PartnerRoute
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/meals'
     | '/onboarding'
+    | '/partner'
     | '/pharmacy'
     | '/profile'
     | '/reminders'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/meals'
     | '/onboarding'
+    | '/partner'
     | '/pharmacy'
     | '/profile'
     | '/reminders'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/meals'
     | '/onboarding'
+    | '/partner'
     | '/pharmacy'
     | '/profile'
     | '/reminders'
@@ -193,6 +205,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   MealsRoute: typeof MealsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PartnerRoute: typeof PartnerRoute
   PharmacyRoute: typeof PharmacyRoute
   ProfileRoute: typeof ProfileRoute
   RemindersRoute: typeof RemindersRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/partner': {
+      id: '/partner'
+      path: '/partner'
+      fullPath: '/partner'
+      preLoaderRoute: typeof PartnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pharmacy': {
       id: '/pharmacy'
       path: '/pharmacy'
@@ -305,6 +325,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   MealsRoute: MealsRoute,
   OnboardingRoute: OnboardingRoute,
+  PartnerRoute: PartnerRoute,
   PharmacyRoute: PharmacyRoute,
   ProfileRoute: ProfileRoute,
   RemindersRoute: RemindersRoute,

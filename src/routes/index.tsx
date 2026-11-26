@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { HeartHandshake, Users } from "lucide-react";
+import { HeartHandshake, Store, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { isPhoneEmail } from "@/lib/cloud";
 import { continueWithGoogle } from "@/lib/google";
 import { GoogleButton } from "@/components/GoogleButton";
 import { HealthForm } from "@/components/HealthForm";
+import type { Address } from "@/lib/pincode";
 import { TermsConsent } from "@/components/TermsConsent";
 import { HeroShowcase } from "@/components/HeroShowcase";
 
@@ -36,7 +37,7 @@ const DEMOS = [
 
 function Login() {
   const { ready, me, phoneSignIn, register, pendingCloud, completeCloudRegistration, completeOnboarding } = useStore();
-  const [pendingHealth, setPendingHealth] = useState<{ h: HealthProfile; addr: string } | null>(null);
+  const [pendingHealth, setPendingHealth] = useState<{ h: HealthProfile; addr: Address } | null>(null);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const [mode, setMode] = useState<"signin" | "register">("signin");
@@ -55,7 +56,7 @@ function Login() {
     if (me && pendingHealth) { completeOnboarding(pendingHealth.h, pendingHealth.addr); setPendingHealth(null); }
   }, [me, pendingHealth, completeOnboarding]);
   useEffect(() => {
-    if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
+    if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "partner" ? "/partner" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
   }, [ready, me, nav, pendingHealth]);
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
@@ -97,7 +98,7 @@ function Login() {
     if (n !== undefined && (n < 18 || n > 120)) return toast.error("Please enter a valid age.");
     setStep("terms");
   };
-  const finish = (health?: { h: HealthProfile; addr: string }) => {
+  const finish = (health?: { h: HealthProfile; addr: Address }) => {
     if (health) setPendingHealth(health);
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
     const n = age ? Number(age) : undefined;
@@ -191,7 +192,7 @@ function Login() {
               </div>
               <p className="mb-2 mt-4 font-bold">I am a…</p>
               <div className="grid gap-2">
-                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users]] as const).map(([r, t, s, Icon]) => (
+                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users], ["partner", "Partner business", "Medical store, kitchen or fitness coach", Store]] as const).map(([r, t, s, Icon]) => (
                   <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
                     <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-base">{t}</strong><span className="text-muted-foreground">{s}</span></span>
                   </Button>
