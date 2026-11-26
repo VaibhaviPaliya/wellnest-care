@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BrandMark } from "./BrandMark";
 import { Bell, BadgeCheck, Dumbbell, Pill, Soup, Sparkles, Truck, Video } from "lucide-react";
 
 /** Animated preview of the app for the sign-in page: three services, each with a family alert. */
@@ -135,7 +136,7 @@ export function HeroShowcase({ compact = false }: { compact?: boolean }) {
           <div className="overflow-hidden rounded-[1.6rem] bg-background p-3 text-foreground">
             <div className="mb-3 flex items-center justify-between">
               <div><p className="text-[10px] text-muted-foreground">Good morning</p><p className="text-[13px] font-bold">Kamala</p></div>
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground">W</span>
+              <BrandMark size={28} />
             </div>
             <div className="mb-3 grid grid-cols-3 gap-1.5" aria-hidden>
               {SCENES.map((s, i) => (

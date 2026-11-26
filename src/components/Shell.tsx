@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { toast } from "sonner";
 import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { BrandMark } from "@/components/BrandMark";
 import { LangToggle, useT } from "@/lib/i18n";
 import type { Role } from "@/lib/seed";
 
@@ -12,9 +13,9 @@ export function Logo() {
   const { t } = useT();
   return (
     <Link to="/" className="flex items-center gap-2">
-      <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary font-display text-base font-bold text-primary-foreground">W</span>
+      <BrandMark size={38} />
       <span className="leading-tight">
-        <span className="block font-display text-base font-bold tracking-tight">WellNest</span>
+        <span className="block font-display text-base font-bold tracking-tight">Well<span className="text-primary">Nest</span></span>
         <span className="block whitespace-nowrap text-xs text-muted-foreground">{t("Care that comes home")}</span>
       </span>
     </Link>
