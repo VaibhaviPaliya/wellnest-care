@@ -1,4 +1,4 @@
-export type Role = "senior" | "family" | "admin" | "partner";
+export type Role = "senior" | "family" | "admin" | "partner" | "delivery";
 export type Condition = "diabetes" | "high_bp" | "heart" | "chewing";
 export type DietTag = "low_sugar" | "low_sodium" | "low_oil" | "soft_food" | "high_fiber" | "high_protein";
 export type DietPref = "veg" | "non_veg" | "eggetarian" | "jain";
@@ -28,6 +28,9 @@ export interface User {
   address?: string;
   pincode?: string;
   state?: string;
+  /** Optional exact home pin (helps riders and coaches find the door). */
+  homeLat?: number;
+  homeLng?: number;
   username?: string;
   email?: string;
   age?: number;
@@ -65,7 +68,14 @@ export interface Dish {
 }
 export interface Pharmacy extends PartnerListing { id: string; name: string; area: string; verified: boolean; eta: string; photo?: string; }
 /** Delivery staff for meal and medicine orders. Only verified staff are ever assigned. */
-export interface DeliveryPartner { id: string; name: string; vehicle: string; area: string; verified: boolean; photo?: string; }
+export interface DeliveryPartner {
+  id: string; name: string; vehicle: string; area: string; verified: boolean; photo?: string;
+  /** Store or kitchen this rider works for (riders listed by partners). WellNest's own pool has none. */
+  ownerPartnerId?: string; ownerKind?: "pharmacy" | "kitchen";
+  status?: "pending" | "approved" | "rejected"; reviewNote?: string;
+  /** Private fields, loaded only for the rider, their store and admins. */
+  phone?: string; riderUserId?: string; aadhaarName?: string; docUploadedAt?: string;
+}
 export type PartnerKind = "coach" | "kitchen" | "pharmacy" | "delivery";
 export interface Medicine { id: string; name: string; dose: string; price: number; }
 
@@ -80,6 +90,9 @@ export interface Booking {
   subscriptionId?: string;
   /** Verified delivery partner assigned to a meal or medicine order. */
   deliveryId?: string; deliveryName?: string;
+  /** Server dispatch: the rider currently being offered this order (60 s to accept). */
+  offer?: { riderId: string; riderName?: string; offeredAt: string };
+  assignedAt?: string;
 }
 export interface Notice { id: string; userId: string; title: string; body: string; at: string; read: boolean; who?: { kind: PartnerKind; id: string; name: string }; /** Senior the alert is about (lets Cloud check the sender may alert this person). */ seniorId?: string; }
 

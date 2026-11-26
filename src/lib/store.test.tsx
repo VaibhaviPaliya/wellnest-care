@@ -250,3 +250,27 @@ describe("partners and pincodes", () => {
     expect(err).toMatch(/already has a kitchen/);
   });
 });
+
+describe("store delivery partners", () => {
+  it("leaves rider assignment to server dispatch for stores with their own verified riders", async () => {
+    const result = await store();
+    // Give Apollo (p1) its own verified rider
+    act(() => { result.current.logout(); });
+    act(() => { result.current.login("9999999999"); });
+    const own = { id: "dl-own", name: "Store Rider", vehicle: "Scooter", area: "Bengaluru", verified: false, ownerPartnerId: "p1", riderUserId: "u-x" };
+    // Seed through toggle path: admin cannot verify without a masked Aadhaar
+    let msg: string | null = null;
+    act(() => { (result.current.db.delivery as unknown[]).push(own); });
+    act(() => { msg = result.current.reviewRider("dl-own", true); });
+    expect(msg).toMatch(/masked Aadhaar/);
+    act(() => { (result.current.db.delivery.find((d) => d.id === "dl-own")!).docUploadedAt = "2026-11-26T00:00:00Z"; });
+    act(() => { msg = result.current.reviewRider("dl-own", true); });
+    expect(msg).toBeNull();
+    act(() => { result.current.logout(); });
+    act(() => { result.current.login("9876543210"); });
+    act(() => { result.current.createBooking({ type: "medicine", title: "Medicine order", partnerId: "p1", partnerName: "Apollo", amount: 125, when: new Date(Date.now() + 86400000).toISOString(), detail: "Metformin" }); });
+    const b = result.current.db.bookings[0];
+    expect(b.partnerId).toBe("p1");
+    expect(b.deliveryId).toBeUndefined();
+  });
+});

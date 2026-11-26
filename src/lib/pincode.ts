@@ -2,7 +2,7 @@
  * Indian postal addresses: pincode checks, state from the pincode's first digits, and partner service areas.
  * Browser-safe (no network). The city lookup runs on the server in pincode.functions.ts.
  */
-export interface Address { line: string; pincode: string; city: string; state: string; }
+export interface Address { line: string; pincode: string; city: string; state: string; lat?: number; lng?: number; }
 export const EMPTY_ADDRESS: Address = { line: "", pincode: "", city: "", state: "" };
 
 export const INDIAN_STATES = [
@@ -79,5 +79,5 @@ export function normalizeState(s: string | undefined): string | null {
 }
 
 /** A person's stored address fields as one Address (the street line is kept in `address`). */
-export const addressOf = (u: { address?: string; pincode?: string; city?: string; state?: string } | null | undefined): Address =>
-  ({ line: u?.address ?? "", pincode: u?.pincode ?? "", city: u?.city ?? "", state: u?.state ?? "" });
+export const addressOf = (u: { address?: string; pincode?: string; city?: string; state?: string; homeLat?: number; homeLng?: number } | null | undefined): Address =>
+  ({ line: u?.address ?? "", pincode: u?.pincode ?? "", city: u?.city ?? "", state: u?.state ?? "", lat: u?.homeLat, lng: u?.homeLng });

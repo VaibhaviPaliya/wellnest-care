@@ -81,6 +81,10 @@ interface Ctx {
   deletePartnerDish: (id: string) => Promise<string | null>;
   /** Admin: approve or reject a partner application. */
   reviewPartner: (kind: PartnerType, id: string, approve: boolean, note?: string) => string | null;
+  /** Admin: approve or reject a delivery partner after checking their masked Aadhaar. */
+  reviewRider: (id: string, approve: boolean, note?: string) => string | null;
+  /** Reload everything from Cloud (after a server action such as accepting an order). */
+  refresh: () => Promise<void>;
 }
 const C = createContext<Ctx | null>(null);
 
@@ -297,11 +301,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     completeCloudRegistration: async (p) => {
       if (!pendingCloud) return "Please verify your email first.";
-      if (p.role !== "senior" && p.role !== "family" && p.role !== "partner") return "Only Senior, Family or Partner accounts can be registered.";
+      if (!["senior", "family", "partner", "delivery"].includes(p.role)) return "Only Senior, Family, Partner or Delivery accounts can be registered.";
       const username = p.username.trim().toLowerCase();
       const { error } = await supabase.from("profiles").update({ name: p.name.trim(), username, age: p.age ?? null, city: p.city?.trim() || null }).eq("id", pendingCloud.id);
       if (error) return error.code === "23505" ? "That username is taken. Please choose another." : "Could not save your details.";
-      const { error: rErr } = await supabase.rpc("choose_role", { _role: p.role as "senior" | "family" }); // "partner" is added by migration 0003
+      const { error: rErr } = await supabase.rpc("choose_role", { _role: p.role as "senior" | "family" }); // "partner" (0003) and "delivery" (0004) are newer enum values
       if (rErr && !/already set/i.test(rErr.message)) return "Could not save your role.";
       await adoptCloudUser(pendingCloud.id, pendingCloud.email);
       return null;
@@ -313,7 +317,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return u;
     },
     register: (phone, name, role, extra = {}) => {
-      if (role !== "senior" && role !== "family" && role !== "partner") throw new Error("Only Senior, Family or Partner accounts can be registered.");
+      if (!["senior", "family", "partner", "delivery"].includes(role)) throw new Error("Only Senior, Family, Partner or Delivery accounts can be registered.");
       const email = extra.email?.trim().toLowerCase() || undefined;
       const existing = db.users.find((u) => (phone && u.phone === phone) || (email && u.email?.toLowerCase() === email));
       if (existing) return existing;
@@ -357,11 +361,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       void supabase.auth.signOut(); setPendingCloud(null);
       return null;
     },
-    completeOnboarding: (h, a) => patchMe((u) => u.role === "senior" ? { ...u, consent: { given: true, at: new Date().toISOString() }, health: h, address: a.line.trim() || u.address, pincode: a.pincode, city: a.city.trim() || u.city, state: a.state } : u),
+    completeOnboarding: (h, a) => patchMe((u) => u.role === "senior" ? { ...u, consent: { given: true, at: new Date().toISOString() }, health: h, address: a.line.trim() || u.address, pincode: a.pincode, city: a.city.trim() || u.city, state: a.state, homeLat: a.lat, homeLng: a.lng } : u),
     giveConsent: () => patchMe((u) => u.role === "senior" ? ({ ...u, consent: { given: true, at: new Date().toISOString() } }) : u),
     saveHealth: (h, address) => {
       if (!senior?.consent?.given || !canManageSenior(me, senior)) return;
-      update((d) => ({ ...d, users: d.users.map((u) => u.id === senior.id ? { ...u, health: h, ...(address ? { address: address.line, pincode: address.pincode, city: address.city, state: address.state } : {}) } : u) }));
+      update((d) => ({ ...d, users: d.users.map((u) => u.id === senior.id ? { ...u, health: h, ...(address ? { address: address.line, pincode: address.pincode, city: address.city, state: address.state, homeLat: address.lat, homeLng: address.lng } : {}) } : u) }));
     },
     deleteHealthData: () => {
       if (me?.role !== "senior") return;
@@ -405,13 +409,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const sid = senior.id;
       const subscription = b.subscriptionId ? db.care.subscriptions.find(s => s.id === b.subscriptionId && s.seniorId === sid && hasActiveSubscription(s) && s.remaining > 0) : undefined;
       if (b.subscriptionId && (!subscription || b.type !== 'fitness' || db.care.plans.find(p => p.id === subscription.planId)?.coachId !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
-      const rider = b.type === "fitness" ? null : assignDelivery(db.delivery, db.bookings);
-      if (b.type !== "fitness" && !rider) throw new Error("No verified delivery partner is available right now. Please try again later.");
+      // Stores and kitchens with their own verified riders: the server offers the order to their nearest free rider.
+      const ownRiders = b.type !== "fitness" && db.delivery.some((d) => d.ownerPartnerId === b.partnerId && d.verified);
+      const rider = b.type === "fitness" || ownRiders ? null : assignDelivery(db.delivery.filter((d) => !d.ownerPartnerId), db.bookings);
+      if (b.type !== "fitness" && !ownRiders && !rider) throw new Error("No verified delivery partner is available right now. Please try again later.");
       const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: b.upiRef ?? "UPI" + Math.floor(1e6 + Math.random() * 9e6), ...(rider ? { deliveryId: rider.id, deliveryName: rider.name } : {}) };
       const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
       const time = (x: Date) => x.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-      const helper = rider ? `Delivery by ${rider.name} (verified) around ${time(new Date(b.when))}` : b.videoUrl ? `${b.partnerName} · online video link in Bookings` : `${b.partnerName} arrives ${time(arrivalWindow(b).from)}–${time(arrivalWindow(b).to)}`;
-      const whoRef: Notice["who"] = rider ? { kind: "delivery", id: rider.id, name: rider.name } : { kind: "coach", id: b.partnerId, name: b.partnerName };
+      const helper = ownRiders ? `${b.partnerName}'s delivery partner will be assigned shortly — track them under Bookings` : rider ? `Delivery by ${rider.name} (verified) around ${time(new Date(b.when))}` : b.videoUrl ? `${b.partnerName} · online video link in Bookings` : `${b.partnerName} arrives ${time(arrivalWindow(b).from)}–${time(arrivalWindow(b).to)}`;
+      const whoRef: Notice["who"] = rider ? { kind: "delivery", id: rider.id, name: rider.name } : ownRiders ? { kind: b.type === "meal" ? "kitchen" : "pharmacy", id: b.partnerId, name: b.partnerName } : { kind: "coach", id: b.partnerId, name: b.partnerName };
       update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${helper} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via Razorpay`}`, whoRef) }));
       return booking;
     },
@@ -425,6 +431,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     markRead: () => update((d) => ({ ...d, notices: d.notices.map((n) => (n.userId === d.currentUserId ? { ...n, read: true } : n)) })),
     toggleVerify: (kind, id) => {
       if (me?.role !== "admin") return;
+      const rider = kind === "delivery" ? db.delivery.find((x) => x.id === id) : undefined;
+      if (rider && !rider.verified && rider.ownerPartnerId && !rider.docUploadedAt) { toast.error("They haven't uploaded their masked Aadhaar yet."); return; }
       update((d) => {
         const next = { ...d, [kind]: (d[kind] as { id: string; verified: boolean; status?: string }[]).map((x) => (x.id === id ? { ...x, verified: !x.verified, ...(x.status && !x.verified ? { status: "approved" } : {}) } : x)) } as DB;
         if (kind !== "delivery" || next.delivery.find((x) => x.id === id)?.verified) return next;
@@ -508,6 +516,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       update((d) => ({ ...d, [key]: (d[key] as Listing[]).map((x) => (x.id === id ? { ...x, verified: approve, status: approve ? "approved" : "rejected", reviewNote: note?.trim() || undefined } : x)) }) as DB);
       return null;
     },
+    reviewRider: (id, approve, note) => {
+      if (me?.role !== "admin") return "Only administrators can verify delivery partners.";
+      const r = db.delivery.find((x) => x.id === id);
+      if (!r) return "This delivery partner no longer exists.";
+      if (approve && r.ownerPartnerId && !r.docUploadedAt) return "They haven't uploaded their masked Aadhaar yet.";
+      if (!approve && !note?.trim()) return "Give a reason so they can fix it.";
+      update((d) => ({ ...d, delivery: d.delivery.map((x) => (x.id === id ? { ...x, verified: approve, status: approve ? "approved" : "rejected", reviewNote: note?.trim() || undefined } : x)) }));
+      return null;
+    },
+    refresh: async () => { if (cloudUserId) await reload(); },
     resetDemo: () => {
       if (me?.role !== "admin") return;
       if (cloudUserId) { toast.info("Demo data lives in Lovable Cloud now and is shared by everyone, so it cannot be reset from here."); return; }
