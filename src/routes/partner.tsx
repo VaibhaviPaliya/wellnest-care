@@ -1,14 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { BadgeCheck, Clock, Dumbbell, Pill, Soup, XCircle, Pencil, Trash2, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BadgeCheck, Bike, Clock, Crosshair, Dumbbell, Navigation, Phone, Pill, Soup, UserPlus, XCircle, Pencil, Trash2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { AddressFields, PincodeChips } from "@/components/AddressFields";
 import { useStore } from "@/lib/store";
 import { EMPTY_ADDRESS, formatAddress, isPincode } from "@/lib/pincode";
 import { LICENCE_LABEL, PARTNER_LABEL, applicationProblem, listingStatus, type Listing, type PartnerApplication } from "@/lib/partners";
-import { TAG_LABEL, type Coach, type Dish, type Kitchen, type PartnerType, type Pharmacy } from "@/lib/seed";
+import { TAG_LABEL, type Booking, type Coach, type DeliveryPartner, type Dish, type Kitchen, type PartnerType, type Pharmacy } from "@/lib/seed";
+import { BookingTracker, trackable } from "@/components/BookingTracker";
+import { LiveMap, type MapPoint } from "@/components/LiveMap";
+import { useLiveLocation } from "@/lib/useLiveLocation";
+import {
+  RIDER_STATUS_LABEL, VEHICLES, addressLine, assignRider, currentPosition, distanceKm, etaMinutes, jobDetails, navigateUrl,
+  offerSecondsLeft, partnerStatus, removeRider, riderStatus, saveRider, setPickup, type JobDetails,
+} from "@/lib/riders";
 
 export const Route = createFileRoute("/partner")({
   head: () => ({
@@ -49,8 +56,9 @@ function PartnerDashboard() {
       ) : (
         <>
           <ListingSummary kind={kind} listing={listing} />
+          {kind !== "coach" && listing.verified && <DeliveryTeam store={listing} />}
           {kind === "kitchen" && listing.verified && <Menu kitchen={listing as Kitchen} />}
-          <Orders listing={listing} />
+          <Orders listing={listing} kind={kind} />
         </>
       )}
     </>
@@ -246,29 +254,160 @@ function Menu({ kitchen }: { kitchen: Kitchen }) {
   );
 }
 
-function Orders({ listing }: { listing: Listing }) {
-  const { db } = useStore();
-  const orders = db.bookings.filter((b) => b.partnerId === listing.id).sort((x, y) => y.when.localeCompare(x.when));
-  const who = (id: string) => db.users.find((u) => u.id === id);
+/** Store / kitchen riders: list them, see verification progress, edit or remove; set the pickup point. */
+function DeliveryTeam({ store }: { store: Listing }) {
+  const { db, cloud, refresh } = useStore();
+  const riders = db.delivery.filter((d) => d.ownerPartnerId === store.id);
+  const blank = { id: undefined as string | undefined, name: "", phone: "", vehicle: "Motorbike", aadhaarName: "" };
+  const [f, setF] = useState(blank);
+  const [busy, setBusy] = useState(false);
+  const pickup = store as Listing & { pickupLat?: number; pickupLng?: number };
+  if (!cloud) return <section className="surface mt-6 p-5"><h2 className="text-lg font-bold">Delivery partners</h2><p className="text-muted-foreground">Managing your own riders needs WellNest Cloud.</p></section>;
+  const save = async () => {
+    if (!f.name.trim()) return toast.error("Enter the delivery partner’s name.");
+    if (!/^[6-9]\d{9}$/.test(f.phone)) return toast.error("Enter a 10-digit Indian mobile number.");
+    setBusy(true);
+    try { await saveRider(f); toast.success(f.id ? "Updated." : "Added. Ask them to register as a Delivery partner with this mobile number."); setF(blank); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t save."); }
+    finally { setBusy(false); }
+  };
+  const remove = async (d: DeliveryPartner) => {
+    try { await removeRider(d.id); toast.success(`${d.name} removed. Their open orders went back to dispatch.`); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t remove."); }
+  };
+  const pin = async () => {
+    try { await setPickup(await currentPosition()); toast.success("Pickup point saved. Riders nearest to it get orders first."); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t save the pickup point."); }
+  };
   return (
     <section className="surface mt-6 p-5">
-      <h2 className="text-lg font-bold">Orders & bookings</h2>
-      {!listing.verified && <p className="text-sm text-muted-foreground">Orders appear here once your listing is approved.</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold">Delivery partners</h2>
+        <Button variant="care" size="care" className="btn btn-outline" onClick={() => void pin()}><Crosshair className="h-4 w-4" />{pickup.pickupLat ? "Update pickup point" : "Set pickup point"}</Button>
+      </div>
+      <p className="text-sm text-muted-foreground">Orders go to your nearest free rider who is online, like a ride-hailing app. Each rider registers as a <strong>Delivery partner</strong> with the mobile number you add here, then uploads a masked Aadhaar for WellNest to verify. {pickup.pickupLat ? "" : "Set your pickup point from the store so we can find the nearest rider."}</p>
       <ul className="mt-3 divide-y">
-        {orders.map((b) => {
-          const s = who(b.seniorId);
+        {riders.map((d) => {
+          const st = riderStatus(d);
           return (
-            <li key={b.id} className="py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{b.title}</p><span className="tag">{STATUS_LABEL[b.status] ?? b.status}</span></div>
-              <p className="text-sm text-muted-foreground">{fmtWhen(b.when)} · {s?.name ?? "Customer"} · ₹{b.amount}</p>
-              {b.items?.length ? <p className="text-sm">{b.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</p> : <p className="text-sm">{b.detail}</p>}
-              {s?.address && <p className="mt-1 flex items-center gap-1 text-sm"><MapPin className="h-4 w-4 text-primary" />{[s.address, s.city, s.pincode].filter(Boolean).join(", ")}</p>}
-              {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-1 inline-block text-sm text-primary underline">Download prescription</a>}
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="min-w-0"><p className="font-bold">{d.name} <span className="font-normal text-muted-foreground">· {d.vehicle}{d.phone ? ` · +91 ${d.phone}` : ""}</span></p>
+                <p className={`text-sm font-semibold ${st === "verified" ? "text-success" : st === "rejected" ? "text-destructive" : "text-amber-700"}`}>{RIDER_STATUS_LABEL[st]}{st === "rejected" && d.reviewNote ? ` — ${d.reviewNote}` : ""}</p></div>
+              <div className="flex gap-2">
+                <Button variant="care" size="care" className="btn btn-outline" aria-label={`Edit ${d.name}`} onClick={() => setF({ id: d.id, name: d.name, phone: d.phone ?? "", vehicle: d.vehicle, aadhaarName: d.aadhaarName ?? "" })}><Pencil className="h-4 w-4" /></Button>
+                <Button variant="care" size="care" className="btn btn-outline" aria-label={`Remove ${d.name}`} onClick={() => void remove(d)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
             </li>
           );
         })}
-        {listing.verified && !orders.length && <li className="py-3 text-muted-foreground">No orders yet.</li>}
+        {!riders.length && <li className="py-3 text-muted-foreground">No riders yet. Until you add one, WellNest’s own delivery partners handle your orders.</li>}
       </ul>
+      <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2">
+        <label className="font-bold">{f.id ? "Edit name" : "Rider’s name"}<input className="field mt-1" maxLength={80} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+        <label className="font-bold">Mobile number<div className="mt-1 flex gap-2"><span className="field w-auto shrink-0 font-semibold">+91</span><input className="field" inputMode="numeric" maxLength={10} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, "") })} /></div></label>
+        <label className="font-bold">Vehicle<select className="field mt-1" value={f.vehicle} onChange={(e) => setF({ ...f, vehicle: e.target.value })}>{VEHICLES.map((v) => <option key={v}>{v}</option>)}</select></label>
+        <label className="font-bold">Name as on Aadhaar (optional)<input className="field mt-1" maxLength={80} value={f.aadhaarName} onChange={(e) => setF({ ...f, aadhaarName: e.target.value })} /></label>
+        <div className="flex gap-2 sm:col-span-2 sm:justify-end">
+          {f.id && <Button variant="care" size="care" className="btn btn-outline" onClick={() => setF(blank)}>Cancel</Button>}
+          <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void save()}><UserPlus className="h-4 w-4" />{f.id ? "Save rider" : "Add rider"}</Button>
+        </div>
+      </div>
     </section>
+  );
+}
+
+/** Orders for stores and kitchens (dispatch, reassign, track) and visits for coaches (share location, navigate). */
+function Orders({ listing, kind }: { listing: Listing; kind: PartnerType }) {
+  const { db, refresh } = useStore();
+  const [now, setNow] = useState(Date.now());
+  const [trip, setTrip] = useState<string | null>(null); // coach: booking they are travelling to
+  const { pos, error: gpsError } = useLiveLocation(kind === "coach" && !!trip);
+  useEffect(() => {
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    const poll = setInterval(() => void refresh(), 15000);
+    return () => { clearInterval(clock); clearInterval(poll); };
+  }, [refresh]);
+  const orders = db.bookings.filter((b) => b.partnerId === listing.id).sort((x, y) => x.when.localeCompare(y.when));
+  const open = orders.filter((b) => !["completed", "cancelled"].includes(b.status));
+  const done = orders.filter((b) => ["completed", "cancelled"].includes(b.status)).reverse().slice(0, 10);
+  return (
+    <section className="surface mt-6 p-5">
+      <h2 className="text-lg font-bold">{kind === "coach" ? "Upcoming sessions" : "Orders"}</h2>
+      {!listing.verified && <p className="text-sm text-muted-foreground">Orders appear here once your listing is approved.</p>}
+      {kind === "coach" && trip && gpsError && <p role="alert" className="mt-2 text-sm text-destructive">{gpsError}</p>}
+      <ul className="mt-3 divide-y">
+        {open.map((b) => <OrderRow key={b.id} b={b} kind={kind} now={now} trip={trip} setTrip={setTrip} me={pos} />)}
+        {listing.verified && !open.length && <li className="py-3 text-muted-foreground">Nothing open right now.</li>}
+      </ul>
+      {done.length > 0 && (
+        <details className="mt-4"><summary className="cursor-pointer font-semibold">Recent history</summary>
+          <ul className="mt-2 divide-y text-sm">{done.map((b) => <li key={b.id} className="py-2">{b.title} · {fmtWhen(b.when)} · {STATUS_LABEL[b.status]}{b.deliveryName ? ` · ${b.deliveryName}` : ""}</li>)}</ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: PartnerType; now: number; trip: string | null; setTrip: (id: string | null) => void; me: { lat: number; lng: number } | null }) {
+  const { db, refresh } = useStore();
+  const [job, setJob] = useState<JobDetails | null>(null);
+  const [busy, setBusy] = useState(false);
+  const isVisit = kind === "coach" && !b.videoUrl;
+  const riders = db.delivery.filter((d) => d.ownerPartnerId === b.partnerId && d.verified);
+  const customer = db.users.find((u) => u.id === b.seniorId);
+  useEffect(() => { if (isVisit || kind !== "coach") void jobDetails(b.id).then(setJob).catch(() => setJob(null)); }, [b.id, isVisit, kind]);
+  const step = async (status: string, msg: string) => {
+    setBusy(true);
+    try { await partnerStatus(b.id, status); toast.success(msg); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t update."); }
+    finally { setBusy(false); }
+  };
+  const reassign = async (rider: string) => {
+    try { await assignRider(b.id, rider); toast.success("Rider assigned."); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t assign."); }
+  };
+  const left = offerSecondsLeft(b.offer, now);
+  const home = job?.home_lat != null && job.home_lng != null ? { lat: job.home_lat, lng: job.home_lng } : null;
+  const travelling = trip === b.id;
+  const points: MapPoint[] = [...(travelling && me ? [{ ...me, label: "C", title: "You" }] : []), ...(home ? [{ ...home, label: "H", title: job?.name ?? "Customer" }] : [])];
+  return (
+    <li className="space-y-2 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{b.title}</p><span className="tag">{STATUS_LABEL[b.status] ?? b.status}</span></div>
+      <p className="text-sm text-muted-foreground">{fmtWhen(b.when)} · {job?.name ?? customer?.name ?? "Customer"} · ₹{b.amount}</p>
+      {b.items?.length ? <p className="text-sm">{b.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</p> : <p className="text-sm">{b.detail}</p>}
+      {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="inline-block text-sm text-primary underline">Download prescription</a>}
+      {job && (isVisit || kind !== "coach") && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"><span className="flex items-start gap-1"><MapPin className="mt-0.5 h-4 w-4 text-primary" />{addressLine(job)}</span>
+          {job.phone && <a className="font-semibold text-primary" href={`tel:+91${job.phone}`}><Phone className="mr-1 inline h-3.5 w-3.5" />Call</a>}</p>
+      )}
+
+      {kind !== "coach" && (
+        <div className="rounded-xl bg-muted p-3 text-sm">
+          <p className="flex items-center gap-2 font-semibold"><Bike className="h-4 w-4 text-primary" />
+            {b.deliveryName ? `Rider: ${b.deliveryName}` : b.offer && left > 0 ? `Offered to ${b.offer.riderName ?? "a rider"} · ${left}s` : riders.length ? "Waiting for a rider to come online…" : "WellNest delivery pool"}</p>
+          {riders.length > 0 && (
+            <label className="mt-2 flex flex-wrap items-center gap-2">{b.deliveryId ? "Reassign to" : "Assign directly to"}
+              <select className="field w-auto" value="" onChange={(e) => e.target.value && void reassign(e.target.value)}>
+                <option value="">Choose rider…</option>
+                {riders.filter((r) => r.id !== b.deliveryId).map((r) => <option key={r.id} value={r.id}>{r.name} · {r.vehicle}</option>)}
+              </select></label>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {kind === "pharmacy" && b.status === "pending_review" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("confirmed", "Prescription confirmed — the rider can pick up.")}>Confirm prescription</Button>}
+        {kind === "kitchen" && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("in_progress", "Marked as being prepared.")}>Start preparing</Button>}
+        {isVisit && b.status === "confirmed" && (travelling
+          ? <Button variant="care" size="care" className="btn btn-outline" onClick={() => setTrip(null)}>Stop sharing location</Button>
+          : <Button variant="care" size="care" className="btn btn-accent" onClick={() => setTrip(b.id)}><Navigation className="h-4 w-4" />Start trip · share location</Button>)}
+        {isVisit && job && <a className="btn btn-outline" href={navigateUrl(job)} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4" />Navigate{travelling && me && home ? ` · ~${etaMinutes(distanceKm(me, home))} min` : ""}</a>}
+        {kind === "coach" && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => { setTrip(null); void step("in_progress", isVisit ? "Visit started." : "Class started."); }}>{isVisit ? "I’ve arrived — start session" : "Start class"}</Button>}
+        {kind === "coach" && b.status === "in_progress" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("completed", "Session completed.")}>Complete session</Button>}
+      </div>
+      {isVisit && travelling && points.length > 0 && <LiveMap points={points} height="h-64" />}
+      {isVisit && travelling && <p className="text-xs text-muted-foreground">The customer sees your location from 3 hours before the session while this page is open.</p>}
+      {kind !== "coach" && trackable(b) && b.deliveryId && <BookingTracker booking={b} />}
+    </li>
   );
 }

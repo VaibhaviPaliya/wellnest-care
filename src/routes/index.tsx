@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { HeartHandshake, Store, Users } from "lucide-react";
+import { Bike, HeartHandshake, Store, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,7 +56,7 @@ function Login() {
     if (me && pendingHealth) { completeOnboarding(pendingHealth.h, pendingHealth.addr); setPendingHealth(null); }
   }, [me, pendingHealth, completeOnboarding]);
   useEffect(() => {
-    if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "partner" ? "/partner" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
+    if (ready && me && !pendingHealth) nav({ to: me.role === "admin" ? "/admin" : me.role === "partner" ? "/partner" : me.role === "delivery" ? "/delivery" : me.role === "senior" && !me.health ? "/onboarding" : me.role === "family" && !me.linkedSeniorIds.length ? "/family" : "/home" });
   }, [ready, me, nav, pendingHealth]);
 
   const target = method === "phone" ? `+91 ${phone}` : email.trim();
@@ -192,7 +192,7 @@ function Login() {
               </div>
               <p className="mb-2 mt-4 font-bold">I am a…</p>
               <div className="grid gap-2">
-                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users], ["partner", "Partner business", "Medical store, kitchen or fitness coach", Store]] as const).map(([r, t, s, Icon]) => (
+                {([["senior", "Senior citizen", "Book services for myself", HeartHandshake], ["family", "Family member", "Look after a parent or relative", Users], ["partner", "Partner business", "Medical store, kitchen or fitness coach", Store], ["delivery", "Delivery partner", "I deliver for a WellNest store or kitchen", Bike]] as const).map(([r, t, s, Icon]) => (
                   <Button variant="care" size="care" key={r} onClick={() => setRole(r)} aria-pressed={role === r} className={`flex items-center gap-4 rounded-2xl border p-4 text-left ${role === r ? "border-primary bg-secondary" : "bg-card"}`}>
                     <Icon className="h-8 w-8 text-primary" /><span><strong className="block text-base">{t}</strong><span className="text-muted-foreground">{s}</span></span>
                   </Button>

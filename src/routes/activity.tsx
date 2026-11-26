@@ -11,7 +11,7 @@ import { arrivalWindow } from '@/lib/care';
 const clock = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 import type { Booking, Status } from "@/lib/seed";
 import { FLOW, canCancel } from "@/lib/booking-rules";
-import { LiveTracking } from '@/components/LiveTracking';
+import { BookingTracker } from '@/components/BookingTracker';
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/activity")({
@@ -79,7 +79,7 @@ function BookingCard({ b }: { b: Booking }) {
       </div>
       {b.videoUrl && b.status !== "cancelled" && <a href={b.videoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-4">Join online class</a>}
       {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="mt-3 inline-block text-primary underline">View prescription: {b.prescription}</a>}
-      <LiveTracking booking={b} />
+      <BookingTracker booking={b} />
 
       {b.status !== "cancelled" && (
         <ol className="mt-4 flex items-center gap-1" aria-label="Progress">

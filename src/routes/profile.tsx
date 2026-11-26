@@ -36,7 +36,7 @@ function Profile() {
   const sub = [me.username && `@${me.username}`, me.phone && `+91 ${me.phone}`, me.email].filter(Boolean).join(" · ");
   if (me.role !== "senior") return (
     <>
-      <PageTitle title="My Profile" sub={sub} back={me.role !== "admin" && me.role !== "partner"} />
+      <PageTitle title="My Profile" sub={sub} back={me.role === "family"} />
       <div className="surface max-w-2xl p-6"><DetailsForm me={me} /></div>
       <DeleteAccount me={me} />
     </>
@@ -145,7 +145,7 @@ function DetailsForm({ me }: { me: User }) {
   return (
     <>
       <h2 className="text-lg font-bold">Profile details</h2>
-      <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : me.role === "partner" ? "Partner business" : "Administrator"}</p>
+      <p className="mb-4 text-muted-foreground">Role: {me.role === "senior" ? "Senior citizen" : me.role === "family" ? "Family member" : me.role === "partner" ? "Partner business" : me.role === "delivery" ? "Delivery partner" : "Administrator"}</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {field("name", "Full name")}
         {field("username", "Username")}

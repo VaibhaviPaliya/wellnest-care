@@ -11,6 +11,8 @@ import { RatingBadge } from '@/components/RatingBadge';
 import { PartnerAvatar, resizePhoto } from '@/components/PartnerAvatar';
 import { LICENCE_LABEL, PARTNER_KEY, PARTNER_LABEL, type Listing } from '@/lib/partners';
 import { formatAddress } from '@/lib/pincode';
+import { riderDocument, riderStatus, RIDER_STATUS_LABEL } from '@/lib/riders';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { Coach, Kitchen, PartnerType, Pharmacy } from '@/lib/seed';
 
 export const Route = createFileRoute("/admin")({
@@ -31,6 +33,7 @@ type Tab = "partners" | "dishes" | "orders" | 'care';
 
 function Admin() {
   const { db, toggleVerify, toggleDishTag, resetDemo, setStatus, setPartnerPhoto } = useStore();
+  const pendingRiders = db.delivery.filter((d) => d.ownerPartnerId && riderStatus(d) === "pending").length;
   const pendingApps = (["pharmacy", "kitchen", "coach"] as const).flatMap((kind) => (db[PARTNER_KEY[kind]] as Listing[]).filter((l) => l.ownerId && !l.verified && l.status === "pending").map((listing) => ({ kind, listing })));
   const [tab, setTab] = useState<Tab>("partners");
   const [reset, setReset] = useState(false);
@@ -54,12 +57,13 @@ function Admin() {
         {stats.map(([l, v]) => <div key={l} className="surface p-4"><p className="font-display text-2xl font-bold">{v}</p><p className="text-muted-foreground">{l}</p></div>)}
       </div>
       <div className="my-6 flex flex-wrap gap-2">
-        {([["partners", `Partner verification${pendingApps.length ? ` (${pendingApps.length} new)` : ""}`], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
+        {([["partners", `Partner verification${pendingApps.length + pendingRiders ? ` (${pendingApps.length + pendingRiders} new)` : ""}`], ["dishes", "Dish health tags"], ["orders", "Orders & bookings"], ['care', 'Plans, menus & reviews']] as const).map(([k, l]) => <Button variant="care" size="care" key={k} className="chip" aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</Button>)}
       </div>
 
       {tab === "partners" && (
         <div className="space-y-6">
           <Applications apps={pendingApps} />
+          <RiderApplications />
           {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: [c.types.join(", "), pinsLabel(c)].filter(Boolean).join(" · "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
              ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: [k.area, pinsLabel(k)].filter(Boolean).join(" · "), verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
              ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: [p.area, pinsLabel(p)].filter(Boolean).join(" · "), verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
@@ -177,6 +181,58 @@ function Applications({ apps }: { apps: { kind: PartnerType; listing: Listing }[
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+/** Delivery partners listed by stores and kitchens: check the masked Aadhaar, then approve or ask for changes. */
+function RiderApplications() {
+  const { db, reviewRider } = useStore();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [doc, setDoc] = useState<{ name: string; data: string } | null>(null);
+  const listed = db.delivery.filter((d) => d.ownerPartnerId && !d.verified);
+  const store = (id?: string) => [...db.pharmacies, ...db.kitchens].find((p) => p.id === id)?.name ?? "Unknown store";
+  const open = async (id: string, name: string) => {
+    try { const data = await riderDocument(id); if (!data) return toast.error("No document uploaded yet."); setDoc({ name, data }); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t open the document."); }
+  };
+  const act = (id: string, approve: boolean) => {
+    const err = reviewRider(id, approve, notes[id]);
+    if (err) toast.error(err); else toast.success(approve ? "Verified — they can now receive orders." : "Sent back with your note.");
+  };
+  return (
+    <section className="surface p-5">
+      <h2 className="text-lg font-bold">Delivery partner verification · {listed.filter((d) => riderStatus(d) === "pending").length}</h2>
+      <p className="text-muted-foreground">Open the masked Aadhaar, check the name matches and only the last 4 digits are visible, then approve. Reject full (unmasked) Aadhaar uploads.</p>
+      <ul className="mt-3 divide-y">
+        {listed.map((d) => {
+          const st = riderStatus(d);
+          return (
+            <li key={d.id} className="space-y-2 py-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2"><p className="font-bold">{d.name} <span className="font-normal text-muted-foreground">· {d.vehicle} · {store(d.ownerPartnerId)}</span></p><span className="tag">{RIDER_STATUS_LABEL[st]}</span></div>
+              <p className="text-sm">{d.phone ? `+91 ${d.phone}` : ""}{d.aadhaarName ? ` · Name on Aadhaar: ${d.aadhaarName}` : ""}{d.docUploadedAt ? ` · uploaded ${fmtWhen(d.docUploadedAt)}` : ""}</p>
+              {st === "pending" && (
+                <div className="flex flex-wrap items-end gap-2">
+                  <Button variant="care" size="care" className="btn btn-outline" onClick={() => void open(d.id, d.name)}>View masked Aadhaar</Button>
+                  <label className="min-w-0 flex-1 basis-56 text-sm font-semibold">Note (needed to reject)<input className="field mt-1" value={notes[d.id] ?? ""} onChange={(e) => setNotes({ ...notes, [d.id]: e.target.value })} placeholder="e.g. Upload the masked version" /></label>
+                  <Button variant="care" size="care" className="btn btn-outline" onClick={() => act(d.id, false)}>Ask for changes</Button>
+                  <Button variant="care" size="care" className="btn btn-primary" onClick={() => act(d.id, true)}>Approve</Button>
+                </div>
+              )}
+            </li>
+          );
+        })}
+        {!listed.length && <li className="py-3 text-muted-foreground">No delivery partners waiting.</li>}
+      </ul>
+      <Dialog open={!!doc} onOpenChange={(v) => { if (!v) setDoc(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogTitle>Masked Aadhaar · {doc?.name}</DialogTitle>
+          <DialogDescription>Shown to administrators only. Don’t download or share it.</DialogDescription>
+          {doc && (doc.data.startsWith("data:application/pdf")
+            ? <object data={doc.data} type="application/pdf" className="h-[70vh] w-full rounded border" aria-label="Aadhaar PDF">PDF preview isn’t supported in this browser.</object>
+            : <img src={doc.data} alt={`Masked Aadhaar of ${doc.name}`} className="max-h-[70vh] w-full rounded border object-contain" />)}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
