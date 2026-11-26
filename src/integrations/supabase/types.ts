@@ -170,6 +170,62 @@ export type Database = {
         }
         Relationships: []
       }
+      tracking_sessions: {
+        Row: {
+          accuracy: number | null
+          booking_id: string
+          expires_at: string
+          id: string
+          latitude: number | null
+          located_at: string | null
+          longitude: number | null
+          owner_id: string
+          partner_email: string
+          partner_id: string | null
+          service: string
+          stopped: boolean
+          viewer_email: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          booking_id: string
+          expires_at?: string
+          id?: string
+          latitude?: number | null
+          located_at?: string | null
+          longitude?: number | null
+          owner_id: string
+          partner_email: string
+          partner_id?: string | null
+          service: string
+          stopped?: boolean
+          viewer_email?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          booking_id?: string
+          expires_at?: string
+          id?: string
+          latitude?: number | null
+          located_at?: string | null
+          longitude?: number | null
+          owner_id?: string
+          partner_email?: string
+          partner_id?: string | null
+          service?: string
+          stopped?: boolean
+          viewer_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_owner_profile_fk"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -195,29 +251,18 @@ export type Database = {
     Functions: {
       can_manage_senior: { Args: { _senior: string }; Returns: boolean }
       can_view_senior: { Args: { _senior: string }; Returns: boolean }
-      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
-      link_senior: { Args: { _phone: string }; Returns: string }
-      save_senior_profile: { Args: { _senior: string; _health: Json | null; _address: string | null }; Returns: undefined }
-      visible_people: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          name: string
-          username: string | null
-          phone: string | null
-          email: string | null
-          age: number | null
-          city: string | null
-          address: string | null
-          consent_at: string | null
-          health: Json | null
-          role: Database["public"]["Enums"]["app_role"] | null
-          linked_senior_ids: string[]
-        }[]
-      }
       choose_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: undefined
+      }
+      create_tracking: {
+        Args: {
+          _booking: string
+          _partner: string
+          _service: string
+          _viewer?: string
+        }
+        Returns: string
       }
       has_role: {
         Args: {
@@ -225,6 +270,38 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      is_admin: { Args: never; Returns: boolean }
+      is_family_of: {
+        Args: { _senior: string; _user: string }
+        Returns: boolean
+      }
+      link_senior: { Args: { _phone: string }; Returns: string }
+      save_senior_profile: {
+        Args: { _address: string; _health: Json; _senior: string }
+        Returns: undefined
+      }
+      share_tracking: {
+        Args: { _accuracy: number; _id: string; _lat: number; _lng: number }
+        Returns: undefined
+      }
+      stop_tracking: { Args: { _id: string }; Returns: undefined }
+      visible_people: {
+        Args: never
+        Returns: {
+          address: string
+          age: number
+          city: string
+          consent_at: string
+          email: string
+          health: Json
+          id: string
+          linked_senior_ids: string[]
+          name: string
+          phone: string
+          role: Database["public"]["Enums"]["app_role"]
+          username: string
+        }[]
       }
     }
     Enums: {
