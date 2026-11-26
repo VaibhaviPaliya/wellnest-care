@@ -26,7 +26,9 @@ export const alertId = (bookingId: string) => `alert:${bookingId}`;
 
 // ---------- loading ----------
 
-type Person = Database["public"]["Functions"]["visible_people"]["Returns"][number];
+type CloudPerson = Database["public"]["Functions"]["visible_people"]["Returns"][number];
+// Generated RPC types omit SQL nullability for optional profile fields.
+type Person = { [K in keyof CloudPerson]: CloudPerson[K] | null } & Pick<CloudPerson, "id" | "name">;
 export function toUser(p: Person): User {
   return {
     id: p.id, name: p.name, phone: p.phone ?? "", role: p.role ?? "family",
@@ -156,7 +158,12 @@ export async function runOp(client: Client, op: Op): Promise<void> {
       fail((await client.from("profiles").update(op.values).eq("id", data.user.id)).error);
       return;
     }
-    case "seniorProfile": fail((await client.rpc("save_senior_profile", { _senior: op.senior, _health: json(op.health), _address: op.address })).error); return;
+    case "seniorProfile": {
+      // SQL accepts NULL to clear the address; keep it rather than replacing it with an empty string.
+      const args = { _senior: op.senior, _health: json(op.health), _address: op.address };
+      fail((await client.rpc("save_senior_profile", args as Database["public"]["Functions"]["save_senior_profile"]["Args"])).error);
+      return;
+    }
     case "unlink": fail((await client.from("family_links").delete().eq("family_id", op.family).eq("senior_id", op.senior)).error); return;
     case "catalog": fail((await client.from("catalog").upsert(op.rows, { onConflict: "kind,id" })).error); return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

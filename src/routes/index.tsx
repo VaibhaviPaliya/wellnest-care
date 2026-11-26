@@ -88,8 +88,8 @@ function Login() {
     setBusy(true);
     const res = await phoneSignIn(phone, otp);
     setBusy(false);
-    if (res.error) toast.error(res.error);
-    else if (res.needsRegistration) setStep("new");
+    if (res) toast.error(res);
+    // The store sets pendingCloud for new accounts; its effect opens registration.
   };
   const checkDetails = () => {
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(username.trim())) return toast.error("Username: 3–20 letters, numbers, _ or .");
