@@ -1,4 +1,9 @@
 # WellNest completion
+## Real partner tracking
+- [x] Private Cloud tracking sessions for medicine, food and home visits, with email-bound partner invitations and an explicitly invited family viewer.
+- [x] Foreground phone location sharing, Google map display, stop-and-erase controls and stale/expired states.
+- [x] Seven tracking behavior tests; database columns confirmed.
+- [ ] Two-phone GPS flow on the published site still to be verified end to end (organizer + partner signed in on separate phones). Background GPS and automatic dispatch are not available.
 ## New care features
 - [x] Admin-managed weekly exercise plans and prerecorded video links.
 - [x] Demo exercise subscription: ₹1,999 / 30 days, eight sessions, no automatic renewal.

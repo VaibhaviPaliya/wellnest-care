@@ -12,6 +12,20 @@
     {
       "idx": 1,
       "version": "7",
+      "when": 1794985944944,
+      "tag": "0001_private_partner_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794986160191,
+      "tag": "0002_tracking_account_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
       "when": 1795132800000,
       "tag": "0001_care_data_in_cloud",
       "breakpoints": true
