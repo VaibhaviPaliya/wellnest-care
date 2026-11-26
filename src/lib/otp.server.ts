@@ -4,13 +4,14 @@
  *  1. Message Central VerifyNow — sends a 6-digit code on Message Central's pre-approved Indian template
  *     (sender UTOMOB, DLT handled by them) and checks it. Settings: customer ID + password (+ signup email).
  *  2. Twilio Verify — account SID, Verify service SID, and an API key (or auth token).
- *  3. Demo mode — code 123456, when neither is set up. The shared demo accounts always use the demo code.
+ *  3. Demo mode — code 123456, only while neither is set up. Once real SMS is on, every number needs a real code
+ *     (the old shared demo accounts included), so the public demo code can no longer open any account.
  *
  * Settings come from environment secrets (MESSAGECENTRAL_CUSTOMER_ID, MESSAGECENTRAL_PASSWORD,
  * MESSAGECENTRAL_EMAIL / TWILIO_*) or from the locked app_secrets table (rows messagecentral_* / twilio_*),
  * which only the server can read. Codes are never stored by WellNest; the provider checks them and limits attempts.
  */
-import { DEMO_OTP, seedUsers } from "./seed";
+import { DEMO_OTP } from "./seed";
 
 type Provider =
   | { kind: "messagecentral"; customerId: string; password: string; email?: string }
@@ -54,8 +55,6 @@ export const twilioConfig = smsProvider;
 
 /** Indian mobile numbers: 10 digits starting 6–9. */
 export const isIndianMobile = (p: string) => /^[6-9]\d{9}$/.test(p);
-/** The shared demo accounts keep using the demo code even when real SMS is on (they are not real phones). */
-export const isDemoNumber = (p: string) => seedUsers.some((u) => u.phone === p);
 
 // ---------- binding a provider verification ID to the phone (stateless, tamper-proof) ----------
 
@@ -153,7 +152,7 @@ async function twilio(p: Extract<Provider, { kind: "twilio" }>, path: string, fo
 export async function startPhoneVerification(phone: string): Promise<SendResult> {
   if (!isIndianMobile(phone)) throw new Error("Enter a valid 10-digit Indian mobile number.");
   const p = await smsProvider();
-  if (!p || isDemoNumber(phone)) return { mode: "demo", resendAfter: 30 };
+  if (!p) return { mode: "demo", resendAfter: 30 };
   if (p.kind === "twilio") {
     await twilio(p, "Verifications", { To: `+91${phone}`, Channel: "sms", Locale: "en" });
     return { mode: "sms", resendAfter: 30 };
@@ -169,7 +168,7 @@ export async function startPhoneVerification(phone: string): Promise<SendResult>
 export async function checkPhoneCode(phone: string, code: string, ref?: string): Promise<boolean> {
   if (!isIndianMobile(phone) || !/^\d{4,10}$/.test(code)) return false;
   const p = await smsProvider();
-  if (!p || isDemoNumber(phone)) return code === DEMO_OTP;
+  if (!p) return code === DEMO_OTP;
   if (p.kind === "twilio") return (await twilio(p, "VerificationCheck", { To: `+91${phone}`, Code: code })).status === "approved";
   const id = await readRef(phone, ref);
   if (!id) throw new Error("This code request has expired. Please request a new code.");

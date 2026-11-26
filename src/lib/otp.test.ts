@@ -55,12 +55,12 @@ describe("SMS codes via Twilio Verify", () => {
     expect(await otp.checkPhoneCode("9876500002", "123456")).toBe(false); // demo code no longer works for real numbers
   });
 
-  it("keeps the shared demo accounts on the demo code even with SMS on", async () => {
+  it("no longer lets the public demo code open the old demo accounts once SMS is on", async () => {
     Object.assign(process.env, { TWILIO_ACCOUNT_SID: "AC1", TWILIO_VERIFY_SERVICE_SID: "VA2", TWILIO_AUTH_TOKEN: "tok" });
     const otp = await load();
-    expect((await otp.startPhoneVerification("9876543210")).mode).toBe("demo");
-    expect(await otp.checkPhoneCode("9876543210", "123456")).toBe(true);
-    expect(calls).toHaveLength(0);
+    reply = { status: 200, body: { status: "pending" } };
+    expect(await otp.checkPhoneCode("9999999999", "123456")).toBe(false); // demo admin number
+    expect(calls[0].url).toMatch(/VerificationCheck$/); // checked by the provider, not the demo code
   });
 
   it("explains Twilio's limits in plain words", async () => {

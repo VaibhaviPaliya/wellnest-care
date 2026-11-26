@@ -32,12 +32,6 @@ export const Route = createFileRoute("/")({
   component: Login,
 });
 
-const DEMOS = [
-  { phone: "9876543210", label: "Senior · Kamala" },
-  { phone: "9123456789", label: "Family · Arjun" },
-  { phone: "9999999999", label: "Admin" },
-];
-
 function Login() {
   const { ready, me, phoneSignIn, register, pendingCloud, completeCloudRegistration, completeOnboarding } = useStore();
   const [pendingHealth, setPendingHealth] = useState<{ h: HealthProfile; addr: Address } | null>(null);
@@ -174,14 +168,6 @@ function Login() {
                 </>
               )}
               <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready || busy || (method === "phone" && !isIndianMobile(phone))} onClick={sendOtp}>{busy ? "Sending…" : "Send OTP"}</Button>
-              {mode === "signin" && (
-                <>
-                  <p className="mt-5 text-sm font-bold text-muted-foreground">Try a demo account:</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {DEMOS.map((d) => <Button variant="care" size="care" key={d.phone} className="chip text-sm" onClick={() => { setMethod("phone"); setPhone(d.phone); }}>{d.label}</Button>)}
-                  </div>
-                </>
-              )}
             </>
           )}
           {step === "otp" && (
