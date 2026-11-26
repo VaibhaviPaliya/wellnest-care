@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { CheckField } from "@/components/CheckField";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { BadgeCheck, Bike, Clock, Crosshair, Dumbbell, Navigation, Phone, Pill, Soup, UserPlus, XCircle, Pencil, Trash2, MapPin } from "lucide-react";
@@ -178,7 +179,7 @@ function PartnerForm({ kind: fixedKind, listing, onDone }: { kind?: PartnerType;
         <div className="flex flex-wrap gap-4">
           <div><label htmlFor="kk" className="mb-1 block font-bold">Kitchen type</label>
             <select id="kk" className="field" value={a.kitchenKind} onChange={(e) => set("kitchenKind", e.target.value as "dabba" | "restaurant")}><option value="dabba">Home dabba service</option><option value="restaurant">Restaurant</option></select></div>
-          <label className="mt-7 flex items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={!!a.customizes} onChange={(e) => set("customizes", e.target.checked)} />We can customise meals on request</label>
+          <CheckField className="mt-8" checked={!!a.customizes} onChange={(v) => set("customizes", v)}>We can customise meals on request</CheckField>
         </div>
       )}
       {kind === "coach" && (
@@ -244,7 +245,7 @@ function Menu({ kitchen }: { kitchen: Kitchen }) {
         <div><label htmlFor="dp" className="mb-1 block font-bold">Price (₹)</label><input id="dp" className="field" inputMode="numeric" value={f.price || ""} onChange={(e) => setF({ ...f, price: Number(e.target.value.replace(/\D/g, "")) })} /></div>
         <div><label htmlFor="dd" className="mb-1 block font-bold">Type</label><select id="dd" className="field" value={f.diet} onChange={(e) => setF({ ...f, diet: e.target.value as Dish["diet"] })}><option value="veg">Veg</option><option value="egg">Egg</option><option value="non_veg">Non-veg</option></select></div>
         <div className="sm:col-span-3"><label htmlFor="ds" className="mb-1 block font-bold">Short description</label><input id="ds" className="field" maxLength={300} value={f.desc} onChange={(e) => setF({ ...f, desc: e.target.value })} placeholder="e.g. Soft rice and lentils, lightly tempered" /></div>
-        <label className="flex items-center gap-3 font-semibold"><input type="checkbox" className="h-5 w-5" checked={f.jain} onChange={(e) => setF({ ...f, jain: e.target.checked })} />Jain-friendly</label>
+        <CheckField checked={f.jain} onChange={(v) => setF({ ...f, jain: v })}>Jain-friendly</CheckField>
         <div className="flex gap-2 sm:col-span-2 sm:justify-end">
           {f.id && <Button variant="care" size="care" className="btn btn-outline" onClick={() => setF(blank)}>Cancel</Button>}
           <Button variant="care" size="care" className="btn btn-primary" disabled={busy || !f.name.trim()} onClick={() => void save()}>{f.id ? "Save dish" : "Add dish"}</Button>

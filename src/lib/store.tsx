@@ -342,6 +342,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (others.some((u) => u.username === username)) return "That username is taken.";
       if (email && others.some((u) => u.email?.toLowerCase() === email)) return "That email is used by another account.";
       if (phone && others.some((u) => u.phone === phone)) return "That mobile number is used by another account.";
+      if (cloudUserId && phone !== (me.phone ?? "")) return "Verify the new mobile number with the SMS code first.";
       patchMe((u) => ({ ...u, name: p.name.trim(), username, email, phone, age: p.age, city: p.city?.trim() || undefined }));
       void supabase.auth.getUser().then(({ data }) => { if (data.user?.id === me.id) void supabase.from("profiles").update({ name: p.name.trim(), username, phone: phone || null, age: p.age ?? null, city: p.city?.trim() || null }).eq("id", me.id); });
       return null;

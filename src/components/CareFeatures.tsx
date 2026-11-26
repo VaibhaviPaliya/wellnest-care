@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckField } from "@/components/CheckField";
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { Check, Play, MapPin } from 'lucide-react';
@@ -14,7 +15,7 @@ export function MetricsFields({ value, onChange }: { value?: Metrics; onChange: 
   const m = value ?? { age: 65, height: 160, weight: 60, sex: 'female', activity: 'sedentary' };
   const target = value ? calorieTarget(value) : null;
   return <fieldset className="space-y-3"><legend className="text-base font-bold">Calorie estimate (optional)</legend>
-    <label className="flex items-center gap-2"><input type="checkbox" checked={enabled} onChange={e => { setEnabled(e.target.checked); onChange(e.target.checked ? m : undefined); }} />Add measurements for a maintenance estimate</label>
+    <CheckField checked={enabled} onChange={(v) => { setEnabled(v); onChange(v ? m : undefined); }}>Add measurements for a maintenance estimate</CheckField>
     {enabled && <><div className="grid gap-3 sm:grid-cols-3">{([['age', 'Age (years)'], ['height', 'Height (cm)'], ['weight', 'Weight (kg)']] as const).map(([key, label]) => <label key={key} className="font-bold">{label}<input className="field" type="number" step={key === 'age' ? '1' : '0.1'} value={m[key] || ''} onChange={e => onChange({ ...m, [key]: Number(e.target.value) })} /></label>)}</div>
       <div className="grid gap-3 sm:grid-cols-2"><label className="font-bold">Sex used in formula<select className="field" value={m.sex} onChange={e => onChange({ ...m, sex: e.target.value as Metrics['sex'] })}><option value="female">Female</option><option value="male">Male</option></select></label><label className="font-bold">Activity level<select className="field" value={m.activity} onChange={e => onChange({ ...m, activity: e.target.value as Metrics['activity'] })}><option value="sedentary">Mostly seated</option><option value="light">Light activity</option><option value="moderate">Moderate activity</option></select></label></div>
       <p className="font-bold">{target ? `${target} kcal / day — estimated maintenance` : 'Enter valid measurements to calculate.'}</p><p className="text-sm text-muted-foreground">Mifflin–St Jeor estimate, not a treatment target. A dietitian must review medical diets, frailty, weight changes and prescription restrictions.</p></>}

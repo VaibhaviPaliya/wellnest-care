@@ -55,7 +55,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
 
   return (
     <div className="min-h-screen pb-28 lg:pb-10">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Logo />
           <nav className="hidden items-center gap-0.5 lg:flex">
@@ -76,7 +76,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
       </header>
       {me.role !== "admin" && <ReminderRunner />}
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t bg-card/90 backdrop-blur-md lg:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-30 grid border-t bg-card/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden ${links.length === 2 ? "grid-cols-2" : links.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {links.map((l) => (
           <Link key={l.to} to={l.to} className="relative flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium text-muted-foreground" activeProps={{ className: "text-primary" }}>
             <l.icon className="h-[22px] w-[22px]" />{t(l.label)}

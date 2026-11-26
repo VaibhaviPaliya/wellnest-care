@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { InstallApp } from "@/components/InstallApp";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Bike, Clock, FileUp, MapPin, Navigation, Phone, PackageCheck, Power, ShieldAlert } from "lucide-react";
@@ -57,6 +58,7 @@ function Rider() {
   return (
     <>
       <PageTitle title={`Hi ${me.name.split(" ")[0]}`} sub="Deliveries for your medical store or kitchen" back={false} />
+      <InstallApp className="mb-6" note="Open deliveries in one tap. Keep the app open while you deliver so customers can track you." />
       {!mine.length ? (
         <div className="surface space-y-2 p-5">
           <p className="flex items-center gap-2 text-base font-bold"><ShieldAlert className="h-5 w-5 text-amber-600" />Not linked to a store yet</p>

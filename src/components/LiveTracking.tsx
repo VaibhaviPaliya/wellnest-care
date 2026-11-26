@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckField } from "@/components/CheckField";
 import { Link } from '@tanstack/react-router';
 import { MapPin, Copy, Square, Navigation } from 'lucide-react';
 import { toast } from 'sonner';
@@ -72,7 +73,7 @@ export function TrackingSession({sessionId}: {sessionId: string}) {
       <p className="font-bold">{t(session.stopped ? 'Location sharing stopped' : !active ? 'Tracking expired' : sharing ? 'Sharing your location' : locationFresh(session.located_at) ? 'Live partner location' : session.located_at ? 'Location is stale — partner may be offline' : 'Waiting for partner location')}</p>
       <p className="text-sm text-muted-foreground">{t('Sharing ends at {time}', {time: new Date(session.expires_at).toLocaleString('en-IN')})}</p>
       {active && session.latitude !== null && session.longitude !== null && <><TrackingMap lat={session.latitude} lng={session.longitude} /><p className="text-sm">{t('Last update: {time} · accuracy about {meters} m', {time: session.located_at ? new Date(session.located_at).toLocaleTimeString('en-IN') : '—', meters: Math.round(session.accuracy ?? 0)})}</p></>}
-      {partner && active && !sharing && <><label className="flex items-start gap-3"><input type="checkbox" className="mt-1 h-5 w-5 shrink-0" checked={consent} onChange={e => setConsent(e.target.checked)} />{t('I agree to share my current location with the organizer and their invited family member while this visit or delivery is active.')}</label><p className="text-sm text-muted-foreground">{t('Keep this page open and your phone unlocked. Background tracking is not available. Only your latest location is stored.')}</p><Button variant="care" size="care" disabled={!consent} onClick={start}><Navigation />{t('Start sharing location')}</Button></>}
+      {partner && active && !sharing && <><CheckField card checked={consent} onChange={setConsent}>{t('I agree to share my current location with the organizer and their invited family member while this visit or delivery is active.')}</CheckField><p className="text-sm text-muted-foreground">{t('Keep this page open and your phone unlocked. Background tracking is not available. Only your latest location is stored.')}</p><Button variant="care" size="care" disabled={!consent} onClick={start}><Navigation />{t('Start sharing location')}</Button></>}
       {active && (partner || organizer) && <Button variant="care" size="care" onClick={() => void stop()}><Square />{t('Stop and erase location')}</Button>}
     </>}
   </div>;

@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "WellNest — Care that comes home",
+  "short_name": "WellNest",
+  "description": "Fitness coaches, health-suitable meals and medicine delivery for senior citizens, with family alerts and live tracking.",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "start_url": "/?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F7FAFA",
+  "theme_color": "#0F7C74",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/icons/screenshot-phone.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Sign in and book care" },
+    { "src": "/icons/screenshot-wide.png", "sizes": "1280x800", "type": "image/png", "form_factor": "wide", "label": "WellNest on a computer" }
+  ],
+  "shortcuts": [
+    { "name": "Order medicines", "short_name": "Medicines", "url": "/pharmacy?source=app", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Health-suitable meals", "short_name": "Meals", "url": "/meals?source=app", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "My bookings & tracking", "short_name": "Bookings", "url": "/activity?source=app", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

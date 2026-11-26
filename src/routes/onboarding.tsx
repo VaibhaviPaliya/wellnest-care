@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { CheckField } from "@/components/CheckField";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
@@ -49,10 +50,7 @@ function Onboarding() {
             <li>You can <strong>delete your health data anytime</strong> from your Profile.</li>
           </ul>
           {([["a", "I agree to WellNest storing my health information for the purposes above."], ["b", "I understand I can withdraw consent and delete my data at any time."]] as const).map(([k, t]) => (
-            <label key={k} className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border p-4 text-base">
-              <input type="checkbox" className="mt-1 h-6 w-6 accent-[var(--primary)]" checked={agree[k]} onChange={(e) => setAgree({ ...agree, [k]: e.target.checked })} />
-              {t}
-            </label>
+            <CheckField key={k} card className="mt-3" checked={agree[k]} onChange={(v) => setAgree({ ...agree, [k]: v })}>{t}</CheckField>
           ))}
           <Button variant="care" size="care" className="btn btn-primary mt-6 w-full" disabled={!agree.a || !agree.b} onClick={giveConsent}>I give my consent</Button>
           <Button variant="care" size="care" className="mt-4 text-primary underline" onClick={() => { logout(); nav({ to: "/" }); }}>Not now — sign out</Button>

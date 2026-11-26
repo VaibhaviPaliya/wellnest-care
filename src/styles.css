@@ -142,6 +142,27 @@
   &:hover { background: var(--muted); }
   &[aria-pressed="true"] { background: var(--secondary); color: var(--secondary-foreground); border-color: color-mix(in oklab, var(--primary) 45%, transparent); font-weight: 600; }
 }
+/* One standard checkbox everywhere: same size, border, tick and focus ring; never squashed by long labels. */
+@utility check {
+  appearance: none; -webkit-appearance: none; flex-shrink: 0; width: 1.375rem; height: 1.375rem; margin: .0625rem 0 0;
+  border: 2px solid color-mix(in oklab, var(--foreground) 30%, transparent); border-radius: .45rem; background-color: var(--card);
+  background-position: center; background-repeat: no-repeat; background-size: .9rem; cursor: pointer;
+  transition: background-color .15s, border-color .15s, box-shadow .15s;
+  &:hover { border-color: var(--primary); }
+  &:checked {
+    background-color: var(--primary); border-color: var(--primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+  }
+  &:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+/* Label row for a checkbox: same font, size and spacing everywhere. */
+@utility check-row { display: flex; align-items: flex-start; gap: .75rem; font-size: 1rem; line-height: 1.5; font-weight: 400; color: var(--foreground); cursor: pointer; }
+/* Boxed variant for consent items; highlights when ticked. */
+@utility check-card {
+  padding: .875rem 1rem; border: 1px solid var(--border); border-radius: .875rem; background: var(--card); transition: border-color .15s, background-color .15s;
+  &:has(:checked) { border-color: color-mix(in oklab, var(--primary) 45%, transparent); background: var(--secondary); }
+}
 @utility tag { display: inline-flex; align-items: center; padding: .1rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 600; letter-spacing: .01em; background: var(--muted); color: var(--muted-foreground); }
 
 /* Sign-in page showcase */

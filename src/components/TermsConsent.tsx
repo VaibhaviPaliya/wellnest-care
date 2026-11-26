@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CheckField } from "@/components/CheckField";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/lib/seed";
@@ -28,9 +29,7 @@ export function TermsConsent({ role, busy, onAccept, onBack }: { role: Role; bus
         <p className="mt-3 font-bold">6. Your rights</p><p>You can correct your details, withdraw consent, delete your health data, or delete your account at any time from your Profile.</p>
       </div>
       {items.map(([k, t]) => (
-        <label key={k} className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-base">
-          <input type="checkbox" className="mt-1 h-6 w-6 accent-[var(--primary)]" checked={!!ok[k]} onChange={(e) => setOk({ ...ok, [k]: e.target.checked })} />{t}
-        </label>
+        <CheckField key={k} card className="mt-3" checked={!!ok[k]} onChange={(v) => setOk({ ...ok, [k]: v })}>{t}</CheckField>
       ))}
       <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={busy || !items.every(([k]) => ok[k])} onClick={onAccept}>{role === "senior" ? "I agree — continue" : busy ? "Creating account…" : "I agree — create account"}</Button>
       <Button variant="care" size="care" className="mt-3 w-full text-sm font-medium text-primary underline-offset-4 hover:underline" onClick={onBack}>Back</Button>
