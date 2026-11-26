@@ -14,7 +14,7 @@ export function useCountdown() {
   const [until, setUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (until <= now) return; const id = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(id); }, [until, now]);
-  return { left: Math.max(0, Math.ceil((until - now) / 1000)), start: () => { setNow(Date.now()); setUntil(Date.now() + RESEND_SECONDS * 1000); } };
+  return { left: Math.max(0, Math.ceil((until - now) / 1000)), start: (seconds = RESEND_SECONDS) => { setNow(Date.now()); setUntil(Date.now() + seconds * 1000); } };
 }
 
 /**
@@ -27,6 +27,7 @@ export function MobileVerify({ current, onVerified, label = "Mobile number" }: {
   const [phone, setPhone] = useState(current ?? "");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState<"sms" | "demo" | null>(null);
+  const [ref, setRef] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const timer = useCountdown();
 
@@ -34,8 +35,9 @@ export function MobileVerify({ current, onVerified, label = "Mobile number" }: {
     if (!isIndianMobile(phone)) return toast.error("Enter a valid 10-digit Indian mobile number.");
     setBusy(true);
     try {
-      const { mode } = await sendPhoneOtp({ data: { phone } });
-      setSent(mode); setCode(""); timer.start();
+      const r = await sendPhoneOtp({ data: { phone } });
+      setSent(r.mode); setRef(r.ref); setCode(""); timer.start(r.resendAfter);
+      const mode = r.mode;
       toast.success(mode === "sms" ? `We've texted a 6-digit code to +91 ${phone}.` : "Demo mode — SMS isn't set up yet. Use code 123456.");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't send the code."); }
     finally { setBusy(false); }
@@ -43,7 +45,7 @@ export function MobileVerify({ current, onVerified, label = "Mobile number" }: {
   const verify = async () => {
     setBusy(true);
     try {
-      await verifyMyMobile({ data: { phone, code } });
+      await verifyMyMobile({ data: { phone, code, ref } });
       await refresh();
       toast.success("Mobile number verified.");
       setEditing(false); setSent(null); onVerified?.(phone);

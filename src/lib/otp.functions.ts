@@ -9,16 +9,16 @@ const mobile = (v: unknown) => {
 
 /** Whether real SMS is set up (the sign-in page shows a demo note when it isn't). */
 export const otpMode = createServerFn({ method: "GET" }).handler(async () => {
-  const { twilioConfig } = await import("./otp.server");
-  return { sms: !!(await twilioConfig()) };
+  const { smsProvider } = await import("./otp.server");
+  return { sms: !!(await smsProvider()) };
 });
 
-/** Texts a one-time code to an Indian mobile number (Twilio Verify), or reports demo mode. */
+/** Texts a one-time code to an Indian mobile number (Message Central or Twilio), or reports demo mode. */
 export const sendPhoneOtp = createServerFn({ method: "POST" })
   .validator((input: { phone: string }) => ({ phone: mobile(input?.phone) }))
   .handler(async ({ data }) => {
     const { startPhoneVerification } = await import("./otp.server");
-    return { mode: await startPhoneVerification(data.phone) };
+    return await startPhoneVerification(data.phone);
   });
 
 /**
@@ -28,10 +28,10 @@ export const sendPhoneOtp = createServerFn({ method: "POST" })
  */
 export const verifyMyMobile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { phone: string; code: string }) => ({ phone: mobile(input?.phone), code: String(input?.code ?? "").replace(/\D/g, "") }))
+  .validator((input: { phone: string; code: string; ref?: string }) => ({ phone: mobile(input?.phone), code: String(input?.code ?? "").replace(/\D/g, ""), ref: input?.ref ? String(input.ref).slice(0, 200) : undefined }))
   .handler(async ({ data, context }) => {
     const { checkPhoneCode } = await import("./otp.server");
-    if (!(await checkPhoneCode(data.phone, data.code))) throw new Error("That code is not correct or has expired.");
+    if (!(await checkPhoneCode(data.phone, data.code, data.ref))) throw new Error("That code is not correct or has expired.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: taken } = await supabaseAdmin.from("profiles").select("id").eq("phone", data.phone).neq("id", context.userId).maybeSingle();
     if (taken) throw new Error("This mobile number is already used by another WellNest account.");

@@ -2,23 +2,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { phoneEmail, isPhoneEmail } from "./cloud";
 
 /**
- * Mobile sign-in. The code is checked by Twilio Verify when SMS is set up (otp.server.ts); before that, and for the
+ * Mobile sign-in. The code is checked by the SMS provider when set up (otp.server.ts); before that, and for the
  * shared demo accounts, the demo code 123456 works. Every phone
  * user becomes a real Lovable Cloud account so their data is protected by row-level security.
  * The server checks the demo code, finds or creates the account for that number, makes sure the shared
  * demo data exists, and returns a one-time sign-in token that the browser exchanges for a session.
  */
 export const demoPhoneSignIn = createServerFn({ method: "POST" })
-  .validator((input: { phone: string; code: string }) => {
+  .validator((input: { phone: string; code: string; ref?: string }) => {
     if (!input || !/^\d{10}$/.test(String(input.phone))) throw new Error("Please enter a 10-digit mobile number.");
     if (!/^[6-9]\d{9}$/.test(String(input.phone))) throw new Error("Please enter a valid Indian mobile number.");
     if (!/^\d{6}$/.test(String(input.code))) throw new Error("Enter the 6-digit code.");
-    return { phone: String(input.phone), code: String(input.code) };
+    return { phone: String(input.phone), code: String(input.code), ref: input.ref ? String(input.ref).slice(0, 200) : undefined };
   })
   .handler(async ({ data }) => {
     // Real SMS (Twilio Verify) when configured; otherwise, and for the shared demo accounts, the demo code.
     const { checkPhoneCode } = await import("./otp.server");
-    if (!(await checkPhoneCode(data.phone, data.code))) throw new Error("That code is not correct or has expired. Request a new one if needed.");
+    if (!(await checkPhoneCode(data.phone, data.code, data.ref))) throw new Error("That code is not correct or has expired. Request a new one if needed.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { ensureDemoData } = await import("./cloud.server");
     await ensureDemoData(supabaseAdmin);

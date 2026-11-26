@@ -54,7 +54,7 @@ interface Ctx {
   /** Signed in to Lovable Cloud: data is loaded from and saved to Cloud tables (row-level security). */
   cloud: boolean;
   /** Mobile sign-in: checks the demo code on the server and starts a Cloud session. */
-  phoneSignIn: (phone: string, code: string) => Promise<string | null>;
+  phoneSignIn: (phone: string, code: string, ref?: string) => Promise<string | null>;
   toggleDishTag: (dishId: string, tag: DietTag) => void;
   resetDemo: () => void;
   saveExercisePlan: (plan: ExercisePlan) => string | null;
@@ -211,9 +211,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value: Ctx = useMemo(() => ({
     ready, db, me, senior, medicines: seedMedicines, pendingCloud, cloud: !!cloudUserId,
-    phoneSignIn: async (phone, code) => {
+    phoneSignIn: async (phone, code, ref) => {
       try {
-        const { tokenHash } = await demoPhoneSignIn({ data: { phone, code } });
+        const { tokenHash } = await demoPhoneSignIn({ data: { phone, code, ref } });
         const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
         return error ? "Could not sign you in. Please try again." : null;
       } catch (e) { return cloudMessage(e); }
