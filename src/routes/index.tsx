@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { MobileVerify, isIndianMobile, mobileHint, useCountdown } from "@/components/MobileVerify";
-import { sendPhoneOtp } from "@/lib/otp.functions";
 import { InstallApp } from "@/components/InstallApp";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BadgeCheck, Bike, HeartHandshake, Store, Users } from "lucide-react";
+import { Bike, HeartHandshake, Store, Users } from "lucide-react";
 import { Logo } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,9 +52,6 @@ function Login() {
   const [age, setAge] = useState("");
   const [city, setCity] = useState("");
   const [role, setRole] = useState<Role>("senior");
-  const [smsMode, setSmsMode] = useState<"sms" | "demo">("demo");
-  const [verifiedPhone, setVerifiedPhone] = useState(""); // email / Google sign-ups verify a mobile on the details step
-  const resend = useCountdown();
 
   useEffect(() => {
     if (me && pendingHealth) { completeOnboarding(pendingHealth.h, pendingHealth.addr); setPendingHealth(null); }
@@ -69,7 +64,7 @@ function Login() {
   const reset = (m: typeof mode) => { setMode(m); setStep("id"); setOtp(""); };
   useEffect(() => { if (pendingCloud) { if (!isPhoneEmail(pendingCloud.email)) { setMethod("email"); setEmail(pendingCloud.email); } if (pendingCloud.name) setName((n) => n || pendingCloud.name || ""); setStep("new"); } }, [pendingCloud]);
   const sendOtp = async () => {
-    if (method === "phone" && !isIndianMobile(phone)) return toast.error("Please enter a valid 10-digit Indian mobile number");
+    if (method === "phone" && !/^\d{10}$/.test(phone)) return toast.error("Please enter a 10-digit mobile number");
     if (method === "email" && !/^\S+@\S+\.\S+$/.test(email.trim())) return toast.error("Please enter a valid email address");
     if (method === "email") {
       setBusy(true);
@@ -79,16 +74,8 @@ function Login() {
       toast.success(`We emailed a sign-in code to ${email.trim()}. Check your inbox (and spam).`);
       return setStep("otp");
     }
-    setBusy(true);
-    try {
-      const { mode } = await sendPhoneOtp({ data: { phone } });
-      setSmsMode(mode);
-      toast.success(mode === "sms" ? `We've texted a 6-digit code to ${target}.` : `Demo mode — SMS isn't set up yet. Use code ${DEMO_OTP}.`);
-      resend.start();
-      setOtp("");
-      setStep("otp");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Couldn't send the code. Please try again."); }
-    finally { setBusy(false); }
+    toast.success(`Demo OTP sent to ${target}: ${DEMO_OTP}. No real ${method === "phone" ? "SMS" : "email"} is sent.`);
+    setStep("otp");
   };
   const verify = async () => {
     if (method === "email") {
@@ -98,11 +85,12 @@ function Login() {
       if (error) toast.error("That code is not correct or has expired.");
       return;
     }
-    // Mobile accounts are Lovable Cloud accounts too; the server checks the SMS code (or demo code) and starts a session.
+    if (otp !== DEMO_OTP) return toast.error("That code is not correct. Try 123456.");
+    // Mobile accounts are Lovable Cloud accounts too; the server checks the demo code and starts a session.
     setBusy(true);
     const res = await phoneSignIn(phone, otp);
     setBusy(false);
-    if (res) toast.error(res); else toast.success("Mobile number verified.");
+    if (res) toast.error(res);
     // The store sets pendingCloud for new accounts; its effect opens registration.
   };
   const checkDetails = () => {
@@ -162,9 +150,8 @@ function Login() {
                   <label htmlFor="phone" className="mb-2 block text-base font-bold">Mobile number</label>
                   <div className="flex gap-2">
                     <span className="field flex w-auto items-center font-bold">+91</span>
-                    <input id="phone" inputMode="numeric" autoComplete="tel-national" maxLength={10} className="field text-xl tracking-wider" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} aria-invalid={phone.length === 10 && !isIndianMobile(phone)} aria-describedby="phone-hint" />
+                    <input id="phone" inputMode="numeric" maxLength={10} className="field text-xl tracking-wider" placeholder="98765 43210" value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))} />
                   </div>
-                  <p id="phone-hint" className={`mt-1 text-xs ${phone.length === 10 && !isIndianMobile(phone) ? "text-destructive" : "text-muted-foreground"}`}>{mobileHint(phone) || "We'll text you a 6-digit code to verify this number."}</p>
                 </>
               ) : (
                 <>
@@ -172,7 +159,7 @@ function Login() {
                   <input id="email" type="email" className="field text-xl" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </>
               )}
-              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready || busy || (method === "phone" && !isIndianMobile(phone))} onClick={sendOtp}>{busy ? "Sending…" : "Send OTP"}</Button>
+              <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" disabled={!ready || busy} onClick={sendOtp}>Send OTP</Button>
               {mode === "signin" && (
                 <>
                   <p className="mt-5 text-sm font-bold text-muted-foreground">Try a demo account:</p>
@@ -186,11 +173,8 @@ function Login() {
           {step === "otp" && (
             <>
               <label htmlFor="otp" className="mb-2 block text-base font-bold">Enter the 6-digit code sent to {target}</label>
-              <input id="otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
-              <p className="mt-2 text-muted-foreground">{method === "email" ? "Enter the code from your email. If it shows a sign-in link instead, just tap that link." : smsMode === "sms" ? "Check your SMS messages. The code expires in 10 minutes." : <>Demo mode — use <strong>{DEMO_OTP}</strong></>}</p>
-              {method === "phone" && (
-                <p className="mt-1 text-sm">{resend.left > 0 ? <span className="text-muted-foreground">Didn't get it? Resend in {resend.left}s</span> : <button type="button" className="font-semibold text-primary underline-offset-4 hover:underline" disabled={busy} onClick={() => void sendOtp()}>Resend code</button>}</p>
-              )}
+              <input id="otp" inputMode="numeric" maxLength={8} autoFocus className="field text-center text-3xl tracking-[0.5em]" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} />
+              <p className="mt-2 text-muted-foreground">{method === "email" ? "Enter the code from your email. If it shows a sign-in link instead, just tap that link." : <>Demo code: <strong>{DEMO_OTP}</strong></>}</p>
               <Button variant="care" size="care" className="btn btn-primary mt-4 w-full" onClick={verify} disabled={otp.length < 6 || busy}>Verify & continue</Button>
               <Button variant="care" size="care" className="mt-3 w-full text-sm font-medium text-primary underline-offset-4 hover:underline" onClick={() => { setStep("id"); setOtp(""); }}>Change {method === "phone" ? "number" : "email"}</Button>
             </>
@@ -198,13 +182,7 @@ function Login() {
           {step === "new" && (
             <>
               <h2 className="text-lg font-bold">Welcome! Tell us about you</h2>
-              <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-success"><BadgeCheck className="h-4 w-4" aria-hidden />{method === "phone" ? `Mobile verified: +91 ${phone}` : `Email verified: ${email.trim() || pendingCloud?.email}`}</p>
-              {method !== "phone" && (
-                <div className="mt-4 rounded-xl border p-4">
-                  <MobileVerify current={verifiedPhone || undefined} onVerified={setVerifiedPhone} label="Mobile number (verify to continue)" />
-                  <p className="mt-2 text-xs text-muted-foreground">Family members and stores find you by this number, so we confirm it by SMS.</p>
-                </div>
-              )}
+              <p className="text-muted-foreground">Verified: {target}</p>
               <label htmlFor="name" className="mb-2 mt-4 block font-bold">Full name</label>
               <input id="name" className="field" value={name} onChange={(e) => setName(e.target.value)} />
               <label htmlFor="username" className="mb-2 mt-4 block font-bold">Username</label>
@@ -221,7 +199,7 @@ function Login() {
                   </Button>
                 ))}
               </div>
-              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2 || username.trim().length < 3 || (method !== "phone" && !!pendingCloud && !verifiedPhone)} onClick={checkDetails}>Continue</Button>
+              <Button variant="care" size="care" className="btn btn-primary mt-5 w-full" disabled={name.trim().length < 2 || username.trim().length < 3} onClick={checkDetails}>Continue</Button>
             </>
           )}
           {step === "terms" && (
