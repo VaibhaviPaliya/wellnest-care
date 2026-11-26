@@ -8,7 +8,9 @@ export function TermsConsent({ role, busy, onAccept, onBack }: { role: Role; bus
     ["terms", "I have read and agree to the WellNest Terms & Conditions."],
     ...(role === "senior"
       ? [["health", "I consent to WellNest storing my health information and any medical records I upload, only to suggest suitable meals and sessions."], ["withdraw", "I understand I can withdraw consent, delete my health data, or delete my account at any time."]]
-      : role === "partner"
+      : role === "delivery"
+        ? [["identity", "I will upload only my masked Aadhaar (first 8 digits hidden). WellNest uses it only to verify my identity; my store and customers never see it."], ["location", "I agree to share my live location only while I am online in the app, so customers can track their delivery. Going offline stops sharing and erases it."], ["privacy", "I will use customers’ names, addresses and phone numbers only to complete their delivery."]]
+        : role === "partner"
         ? [["licence", "The licence and business details I submit are true. My listing appears to customers only after WellNest verifies them."], ["privacy", "I will use customers’ names, orders and addresses only to deliver the service they booked."]]
         : [["privacy", "I will only view a senior’s bookings after they share their mobile number with me, and I respect their privacy."]]),
   ] as const;

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone, Store } from "lucide-react";
+import { Bell, Home, ClipboardList, Users, ShieldCheck, LogOut, UserRound, Loader2, CheckCircle2, Smartphone, Store, Bike } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { BrandMark } from "@/components/BrandMark";
 import { LangToggle, useT } from "@/lib/i18n";
@@ -33,7 +33,7 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
     if (!ready) return;
     if (!me) { nav({ to: "/" }); return; }
     if (me.role === "senior" && (!me.consent?.given || !me.health)) { nav({ to: "/onboarding" }); return; }
-    if (roles && !roles.includes(me.role)) nav({ to: me.role === "admin" ? "/admin" : me.role === "partner" ? "/partner" : "/home" });
+    if (roles && !roles.includes(me.role)) nav({ to: me.role === "admin" ? "/admin" : me.role === "partner" ? "/partner" : me.role === "delivery" ? "/delivery" : "/home" });
   }, [ready, me, roles, nav]);
 
   if (!ready || !me) return <div className="grid min-h-screen place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -43,6 +43,8 @@ export function Shell({ roles, children }: { roles?: Role[]; children: ReactNode
     ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }, { to: "/profile", label: "Profile", icon: UserRound }]
     : me.role === "partner"
     ? [{ to: "/partner", label: "Partner dashboard", icon: Store }, { to: "/profile", label: "Profile", icon: UserRound }]
+    : me.role === "delivery"
+    ? [{ to: "/delivery", label: "Deliveries", icon: Bike }, { to: "/profile", label: "Profile", icon: UserRound }]
     : [
         { to: "/home", label: "Home", icon: Home },
         { to: "/activity", label: "Bookings", icon: ClipboardList },

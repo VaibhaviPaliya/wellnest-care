@@ -5,7 +5,7 @@ type Point = { lat: number; lng: number };
 type MapsApi = { Map: new (element: HTMLElement, options: {center: Point; zoom: number; clickableIcons: boolean}) => {panTo: (point: Point) => void}; Marker: new (options: {position: Point; map: unknown}) => {setPosition: (point: Point) => void; setMap: (map: null) => void} };
 declare global { interface Window { google?: { maps: MapsApi }; wellnestMapReady?: () => void } }
 let load: Promise<MapsApi> | undefined;
-function loadMap(): Promise<MapsApi> {
+export function loadMap(): Promise<MapsApi> {
   if (window.google?.maps) return Promise.resolve(window.google.maps);
   if (load) return load;
   load = new Promise((resolve, reject) => {

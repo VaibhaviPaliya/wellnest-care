@@ -71,7 +71,7 @@ export function HealthForm({ initial, initialAddress, submitLabel, onSubmit }: {
       <fieldset>
         <legend className="mb-1 text-base font-bold">Home address for visits & delivery</legend>
         <p className="mb-3 text-sm text-muted-foreground">The pincode decides which pharmacies, kitchens and home-visit coaches are shown.</p>
-        <AddressFields value={address} onChange={setAddress} />
+        <AddressFields value={address} onChange={setAddress} allowPin />
         {addrProblem && (address.line || address.pincode) && <p className="mt-2 text-sm text-destructive">{addrProblem}</p>}
       </fieldset>
       <Button variant="care" size="care" className="btn btn-primary w-full" disabled={!!addrProblem || (!!metrics && !calorieTarget(metrics))} onClick={() => onSubmit({ conditions, diet, mobility, allergies, records, metrics, history: history.trim() || undefined }, { ...address, line: address.line.trim(), city: address.city.trim() })}>{submitLabel}</Button>

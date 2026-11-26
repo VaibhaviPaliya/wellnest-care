@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Crosshair, Loader2 } from "lucide-react";
+import { currentPosition } from "@/lib/riders";
 import { INDIAN_STATES, isPincode, normalizeState, stateFromPincode, type Address } from "@/lib/pincode";
 import { lookupPincode } from "@/lib/pincode.functions";
 
@@ -7,7 +8,15 @@ import { lookupPincode } from "@/lib/pincode.functions";
  * House/street, pincode, city and state. Typing a valid Indian pincode fills the state straight away
  * (from the pincode's first digits) and the city from India Post; both stay editable.
  */
-export function AddressFields({ value, onChange, idPrefix = "addr", lineLabel = "House / flat, street and area" }: { value: Address; onChange: (a: Address) => void; idPrefix?: string; lineLabel?: string }) {
+export function AddressFields({ value, onChange, idPrefix = "addr", lineLabel = "House / flat, street and area", allowPin = false }: { value: Address; onChange: (a: Address) => void; idPrefix?: string; lineLabel?: string; allowPin?: boolean }) {
+  const [pinning, setPinning] = useState(false);
+  const [pinNote, setPinNote] = useState("");
+  const pinHere = async () => {
+    setPinning(true); setPinNote("");
+    try { const p = await currentPosition(); onChange({ ...latest.current, lat: p.lat, lng: p.lng }); setPinNote(`Pinned (accurate to ~${Math.round(p.accuracy)} m). Do this from home.`); }
+    catch (e) { setPinNote(e instanceof Error ? e.message : "Couldn't read your location."); }
+    finally { setPinning(false); }
+  };
   const [looking, setLooking] = useState(false);
   const [note, setNote] = useState("");
   const [localities, setLocalities] = useState<string[]>([]);
@@ -72,6 +81,15 @@ export function AddressFields({ value, onChange, idPrefix = "addr", lineLabel = 
           {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
+      {allowPin && (
+        <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+          <button type="button" className="btn btn-outline" onClick={() => void pinHere()} disabled={pinning}>
+            <Crosshair className="h-4 w-4" />{pinning ? "Finding you…" : value.lat != null ? "Re-pin exact home location" : "Pin exact home location (optional)"}
+          </button>
+          {value.lat != null && <button type="button" className="text-sm font-semibold text-destructive underline" onClick={() => { onChange({ ...value, lat: undefined, lng: undefined }); setPinNote("Pin removed."); }}>Remove pin</button>}
+          <span className="text-xs text-muted-foreground" aria-live="polite">{pinNote || (value.lat != null ? "Home pinned — riders and coaches navigate straight to it." : "Helps riders and coaches find the door and gives better arrival times.")}</span>
+        </div>
+      )}
     </div>
   );
 }
