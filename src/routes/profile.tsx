@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { MobileVerify } from "@/components/MobileVerify";
 import { InstallApp } from "@/components/InstallApp";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type ChangeEvent, type InputHTMLAttributes } from "react";
@@ -135,11 +136,12 @@ function DeleteAccount({ me }: { me: User }) {
 }
 
 function DetailsForm({ me }: { me: User }) {
-  const { updateProfile } = useStore();
+  const { updateProfile, cloud } = useStore();
   const [f, setF] = useState({ name: me.name, username: me.username ?? "", email: me.email ?? "", phone: me.phone ?? "", age: me.age ? String(me.age) : "", city: me.city ?? "" });
   const set = (k: keyof typeof f) => (e: ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const save = () => {
-    const err = updateProfile({ name: f.name, username: f.username, email: f.email, phone: f.phone, age: f.age ? Number(f.age) : undefined, city: f.city });
+    // In Cloud the mobile number changes only through SMS verification (MobileVerify below).
+    const err = updateProfile({ name: f.name, username: f.username, email: f.email, phone: cloud ? me.phone : f.phone, age: f.age ? Number(f.age) : undefined, city: f.city });
     if (err) toast.error(err); else toast.success("Profile details saved.");
   };
   const field = (k: keyof typeof f, label: string, extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
@@ -152,7 +154,7 @@ function DetailsForm({ me }: { me: User }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {field("name", "Full name")}
         {field("username", "Username")}
-        {field("phone", "Mobile number", { inputMode: "numeric", maxLength: 10 })}
+        {cloud ? <div className="sm:col-span-2"><MobileVerify current={me.phone || undefined} /></div> : field("phone", "Mobile number", { inputMode: "numeric", maxLength: 10 })}
         {field("email", "Email", { type: "email" })}
         {field("age", "Age", { inputMode: "numeric", maxLength: 3 })}
         {field("city", "City")}
