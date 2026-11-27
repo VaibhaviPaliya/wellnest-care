@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ReviewForm } from "@/components/ReviewForm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Star, Dumbbell, Soup, Pill } from "lucide-react";
+import { Star, Dumbbell, Soup, Pill, HandHeart } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/activity")({
   component: () => <Shell roles={["senior", "family"]}><Activity /></Shell>,
 });
 
-const ICON = { fitness: Dumbbell, meal: Soup, medicine: Pill };
+const ICON = { fitness: Dumbbell, meal: Soup, medicine: Pill, therapy: HandHeart };
 
 function Activity() {
   const { db, senior } = useStore();
@@ -63,12 +63,12 @@ function BookingCard({ b }: { b: Booking }) {
   return (
     <li className="surface p-5">
       <div className="flex flex-wrap items-start gap-3">
-        <span className="relative shrink-0"><PartnerAvatar kind={b.type === "fitness" ? "coach" : b.type === "meal" ? "kitchen" : "pharmacy"} id={b.partnerId} name={b.partnerName} size={56} /><Icon className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-card p-0.5 text-primary" aria-hidden /></span>
+        <span className="relative shrink-0"><PartnerAvatar kind={b.type === "fitness" ? "coach" : b.type === "therapy" ? "therapist" : b.type === "meal" ? "kitchen" : "pharmacy"} id={b.partnerId} name={b.partnerName} size={56} /><Icon className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-card p-0.5 text-primary" aria-hidden /></span>
         <div className="min-w-0 flex-1 basis-48">
           <h2 className="text-base font-semibold">{b.title}</h2>
           <p className="text-muted-foreground">{b.partnerName} · {fmtWhen(b.when)}</p>
           <p className="text-muted-foreground">{b.subscriptionId ? 'Subscription credit' : `₹${b.amount} paid · ${b.upiRef}`} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
-          {b.type === "fitness" && !b.videoUrl && b.status !== "cancelled" && <p className="mt-1 font-bold">{t("Coach arrives {from}–{to}", { from: clock(arrivalWindow(b).from), to: clock(arrivalWindow(b).to) })}</p>}
+          {(b.type === "fitness" || b.type === "therapy") && !b.videoUrl && b.status !== "cancelled" && <p className="mt-1 font-bold">{t(b.type === "therapy" ? "Therapist arrives {from}–{to}" : "Coach arrives {from}–{to}", { from: clock(arrivalWindow(b).from), to: clock(arrivalWindow(b).to) })}</p>}
           {b.deliveryId && b.deliveryName && (
             <p className="mt-2 flex items-center gap-2"><PartnerAvatar kind="delivery" id={b.deliveryId} name={b.deliveryName} size={36} /><span><strong>{b.deliveryName}</strong> · {t("verified delivery partner")}{b.status !== "completed" && b.status !== "cancelled" ? ` · ${t("arrives around {time}", { time: clock(new Date(b.when)) })}` : ""}</span></p>
           )}

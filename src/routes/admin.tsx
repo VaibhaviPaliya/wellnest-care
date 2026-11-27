@@ -35,13 +35,13 @@ type Tab = "partners" | "dishes" | "orders" | 'care';
 function Admin() {
   const { db, toggleVerify, toggleDishTag, resetDemo, setStatus, setPartnerPhoto } = useStore();
   const pendingRiders = db.delivery.filter((d) => d.ownerPartnerId && riderStatus(d) === "pending").length;
-  const pendingApps = (["pharmacy", "kitchen", "coach"] as const).flatMap((kind) => (db[PARTNER_KEY[kind]] as Listing[]).filter((l) => l.ownerId && !l.verified && l.status === "pending").map((listing) => ({ kind, listing })));
+  const pendingApps = (["pharmacy", "kitchen", "coach", "therapist"] as const).flatMap((kind) => (db[PARTNER_KEY[kind]] as Listing[]).filter((l) => l.ownerId && !l.verified && l.status === "pending").map((listing) => ({ kind, listing })));
   const [tab, setTab] = useState<Tab>("partners");
   const [reset, setReset] = useState(false);
   const [query, setQuery] = useState("");
   const stats = [
     ["Seniors", db.users.filter((u) => u.role === "senior").length],
-    ["Verified partners", [...db.coaches, ...db.kitchens, ...db.pharmacies, ...db.delivery].filter((p) => p.verified).length],
+    ["Verified partners", [...db.coaches, ...db.kitchens, ...db.pharmacies, ...db.therapists, ...db.delivery].filter((p) => p.verified).length],
     ["Dishes", db.dishes.length],
     ["Bookings & orders", db.bookings.length],
   ] as const;
@@ -67,6 +67,7 @@ function Admin() {
           <RiderApplications />
           <CertificateQueue />
           {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: [c.types.join(", "), pinsLabel(c)].filter(Boolean).join(" · "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
+             ["therapists", "therapist", "Massage therapists", "Unverified therapists are hidden from search. Check the certificate before verifying.", db.therapists.map((x) => ({ id: x.id, name: x.name, sub: [x.services.map((s) => s.name).join(", "), pinsLabel(x)].filter(Boolean).join(" · "), verified: x.verified, type: "therapy" as const, fallback: x.rating ?? 0, photo: x.photo }))],
              ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: [k.area, pinsLabel(k)].filter(Boolean).join(" · "), verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
              ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: [p.area, pinsLabel(p)].filter(Boolean).join(" · "), verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],
              ["delivery", "delivery", "Delivery partners", "Only verified delivery partners are assigned to meal and medicine orders. Unverifying someone moves their open orders to a verified partner.", db.delivery.map((x) => ({ id: x.id, name: x.name, sub: `${x.vehicle} · ${x.area} · ${((n) => `${n} open order${n === 1 ? "" : "s"}`)(db.bookings.filter((b) => b.deliveryId === x.id && !["completed", "cancelled"].includes(b.status)).length)}`, verified: x.verified, type: null, fallback: 0, photo: x.photo }))]] as const).map(([kind, pkind, title, note, rows]) => (

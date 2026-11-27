@@ -23,6 +23,7 @@ import { Route as PartnerRouteImport } from './routes/partner'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as RemindersRouteImport } from './routes/reminders'
+import { Route as TherapyRouteImport } from './routes/therapy'
 import { Route as TrackingRouteImport } from './routes/tracking'
 import { Route as CoachIdRouteImport } from './routes/coach.$id'
 
@@ -96,6 +97,11 @@ const RemindersRoute = RemindersRouteImport.update({
   path: '/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TherapyRoute = TherapyRouteImport.update({
+  id: '/therapy',
+  path: '/therapy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrackingRoute = TrackingRouteImport.update({
   id: '/tracking',
   path: '/tracking',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/therapy': typeof TherapyRoute
   '/tracking': typeof TrackingRoute
   '/coach/$id': typeof CoachIdRoute
 }
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/therapy': typeof TherapyRoute
   '/tracking': typeof TrackingRoute
   '/coach/$id': typeof CoachIdRoute
 }
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/pharmacy': typeof PharmacyRoute
   '/profile': typeof ProfileRoute
   '/reminders': typeof RemindersRoute
+  '/therapy': typeof TherapyRoute
   '/tracking': typeof TrackingRoute
   '/coach/$id': typeof CoachIdRoute
 }
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/therapy'
     | '/tracking'
     | '/coach/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/therapy'
     | '/tracking'
     | '/coach/$id'
   id:
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/pharmacy'
     | '/profile'
     | '/reminders'
+    | '/therapy'
     | '/tracking'
     | '/coach/$id'
   fileRoutesById: FileRoutesById
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   PharmacyRoute: typeof PharmacyRoute
   ProfileRoute: typeof ProfileRoute
   RemindersRoute: typeof RemindersRoute
+  TherapyRoute: typeof TherapyRoute
   TrackingRoute: typeof TrackingRoute
   CoachIdRoute: typeof CoachIdRoute
 }
@@ -338,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/therapy': {
+      id: '/therapy'
+      path: '/therapy'
+      fullPath: '/therapy'
+      preLoaderRoute: typeof TherapyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tracking': {
       id: '/tracking'
       path: '/tracking'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   PharmacyRoute: PharmacyRoute,
   ProfileRoute: ProfileRoute,
   RemindersRoute: RemindersRoute,
+  TherapyRoute: TherapyRoute,
   TrackingRoute: TrackingRoute,
   CoachIdRoute: CoachIdRoute,
 }

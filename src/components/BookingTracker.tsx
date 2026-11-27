@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import { distanceKm, etaMinutes, fresh, trackBooking, type Tracking } from "@/lib/riders";
 import type { Booking } from "@/lib/seed";
 
-/** Bookings that can be tracked: open deliveries and home-visit fitness sessions. */
+/** Bookings that can be tracked: open deliveries, home-visit fitness sessions and therapy visits. */
 export const trackable = (b: Booking) =>
   !["completed", "cancelled"].includes(b.status) && !(b.type === "fitness" && b.videoUrl);
 
@@ -36,7 +36,7 @@ export function BookingTracker({ booking, startOpen = false }: { booking: Bookin
   }, [open, cloud, booking.id, booking.status, booking.deliveryId]);
 
   if (!trackable(booking)) return null;
-  const isVisit = booking.type === "fitness";
+  const isVisit = booking.type === "fitness" || booking.type === "therapy";
   if (!cloud) return <p className="mt-3 text-sm text-muted-foreground">Live tracking is available once you’re signed in to WellNest Cloud.</p>;
 
   const live = t && t.lat != null && t.lng != null && fresh(t.located_at, now);

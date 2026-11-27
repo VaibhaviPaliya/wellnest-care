@@ -4,7 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { DB } from "./store";
-import type { Booking, Coach, DeliveryPartner, Dish, HealthProfile, Kitchen, Notice, Pharmacy, User } from "./seed";
+import type { Booking, Coach, DeliveryPartner, Dish, HealthProfile, Kitchen, Notice, Pharmacy, Therapist, User } from "./seed";
 import type { CareData, CareRequest, ExercisePlan, Reminder, Subscription } from "./care";
 
 export const PHONE_EMAIL_DOMAIN = "phone.wellnest.app";
@@ -12,9 +12,9 @@ export const phoneEmail = (phone: string) => `${phone}@${PHONE_EMAIL_DOMAIN}`;
 export const isPhoneEmail = (email: string) => email.toLowerCase().endsWith(`@${PHONE_EMAIL_DOMAIN}`);
 
 type Client = SupabaseClient<Database>;
-export type Shared = Pick<DB, "users" | "coaches" | "kitchens" | "dishes" | "pharmacies" | "delivery" | "bookings" | "notices" | "care">;
+export type Shared = Pick<DB, "users" | "coaches" | "kitchens" | "dishes" | "pharmacies" | "therapists" | "delivery" | "bookings" | "notices" | "care">;
 
-const CATALOG = { coaches: "coach", kitchens: "kitchen", dishes: "dish", pharmacies: "pharmacy", delivery: "delivery" } as const;
+const CATALOG = { coaches: "coach", kitchens: "kitchen", dishes: "dish", pharmacies: "pharmacy", therapists: "therapist", delivery: "delivery" } as const;
 type CatalogKey = keyof typeof CATALOG;
 type CareKind = "reminder" | "subscription" | "request" | "completion" | "booking_alert";
 type Completion = CareData["completions"][number];
@@ -77,7 +77,7 @@ export async function loadCloud(client: Client): Promise<Shared> {
   return {
     users: (people.data ?? []).map(toUser),
     coaches: of<Coach>("coach"), kitchens: of<Kitchen>("kitchen"), dishes: of<Dish>("dish"),
-    pharmacies: of<Pharmacy>("pharmacy"),
+    pharmacies: of<Pharmacy>("pharmacy"), therapists: of<Therapist>("therapist"),
     delivery: of<DeliveryPartner>("delivery").map((d) => {
       const p = priv.get(d.id);
       return p ? { ...d, phone: p.phone, riderUserId: p.rider_user ?? undefined, aadhaarName: p.aadhaar_name ?? undefined, docUploadedAt: p.doc_uploaded_at ?? undefined } : d;

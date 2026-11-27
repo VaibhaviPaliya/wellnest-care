@@ -100,6 +100,7 @@ describe("delivery partners and arrival", () => {
 
 describe("two-phone demo sync", () => {
   const base = (over: Partial<DB> = {}): DB => ({
+  therapists: [],
     users: [],
     coaches: [],
     kitchens: [],

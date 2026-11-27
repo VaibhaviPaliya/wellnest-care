@@ -15,7 +15,9 @@ export function usePartnerPhoto(kind: PartnerKind, id: string): string | undefin
         ? db.kitchens
         : kind === "pharmacy"
           ? db.pharmacies
-          : db.delivery;
+          : kind === "therapist"
+            ? db.therapists
+            : db.delivery;
   return (list as { id: string; photo?: string }[]).find((p) => p.id === id)?.photo;
 }
 

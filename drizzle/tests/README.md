@@ -20,4 +20,4 @@ PGDATABASE=wellnest_rls_test node drizzle/tests/riders.test.mjs     # 67 rider, 
 PGDATABASE=wellnest_rls_test node drizzle/tests/phone.test.mjs      # 7 verified-mobile + secrets checks (after 0005)
 ```
 
-Batch suites (run after their migration): plans.test.mjs (0006), reviews.test.mjs (0007), packs.test.mjs (0008)
+Batch suites (run after their migration): plans.test.mjs (0006), reviews.test.mjs (0007), packs.test.mjs (0008), therapists.test.mjs (0009)

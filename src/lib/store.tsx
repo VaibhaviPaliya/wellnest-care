@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedUsers,
-  type Booking, type DeliveryPartner, type PartnerKind, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails, type PartnerType,
+  seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedMedicines, seedNotices, seedPharmacies, seedTherapists, seedUsers,
+  type Booking, type DeliveryPartner, type PartnerKind, type Coach, type DietTag, type Dish, type HealthProfile, type Kitchen, type Notice, type Pharmacy, type Role, type Status, type User, type ProfileDetails, type PartnerType, type Therapist,
 } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { canAccessBooking, canManageSenior, canTransition } from "./booking-rules";
@@ -13,11 +13,12 @@ import { MAX_PLANS_PER_COACH, planProblem } from './exercise';
 import { isDetailed, reviewProblem, type ReviewInput } from './reviews';
 import { MAX_PACKS, packProblem, renewalsDue, subscriptionCoach, type Pack } from './packs';
 import { purchasePack } from './packs.functions';
+import { needsDoctorApproval } from './therapy';
 import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
 export interface DB {
-  users: User[]; coaches: Coach[]; kitchens: Kitchen[]; dishes: Dish[]; pharmacies: Pharmacy[];
+  users: User[]; coaches: Coach[]; kitchens: Kitchen[]; dishes: Dish[]; pharmacies: Pharmacy[]; therapists: Therapist[];
   bookings: Booking[]; notices: Notice[]; currentUserId: string | null; activeSeniorId: string | null;
   care: CareData;
   delivery: DeliveryPartner[];
@@ -26,7 +27,7 @@ export interface DB {
 }
 const KEY = "wellnest-db-v1";
 const fresh = (): DB => ({
-  users: seedUsers, coaches: seedCoaches, kitchens: seedKitchens, dishes: seedDishes, pharmacies: seedPharmacies,
+  users: seedUsers, coaches: seedCoaches, kitchens: seedKitchens, dishes: seedDishes, pharmacies: seedPharmacies, therapists: seedTherapists,
   bookings: seedBookings, notices: seedNotices, currentUserId: null, activeSeniorId: null,
   care: freshCare(), delivery: seedDelivery, updatedAt: 0,
 });
@@ -52,7 +53,7 @@ interface Ctx {
   setStatus: (id: string, s: Status) => void;
   review: (id: string, r: ReviewInput) => string | null;
   markRead: () => void;
-  toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies" | "delivery", id: string) => void;
+  toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies" | "delivery" | "therapists", id: string) => void;
   /** Admin: set or clear a partner photo (small image data URL). */
   setPartnerPhoto: (kind: PartnerKind, id: string, photo: string | undefined) => string | null;
   /** Signed in to Lovable Cloud: data is loaded from and saved to Cloud tables (row-level security). */
@@ -417,27 +418,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     createBooking: (b) => {
       if (!me || !senior || !canManageSenior(me, senior)) throw new Error("Link a senior before booking.");
       if (!senior.consent?.given || !senior.health) throw new Error("The senior must complete their consent and health profile first.");
-      const partners = b.type === "fitness" ? db.coaches : b.type === "meal" ? db.kitchens : db.pharmacies;
+      const partners: { id: string; name: string; verified: boolean; servicePincodes?: string[] }[] = b.type === "fitness" ? db.coaches : b.type === "meal" ? db.kitchens : b.type === "therapy" ? db.therapists : db.pharmacies;
       if (!partners.some((p) => p.id === b.partnerId && p.verified)) throw new Error("This partner is not available.");
       const partner = partners.find((p) => p.id === b.partnerId)!;
       const homeService = !(b.type === "fitness" && b.videoUrl);
       if (homeService && !senior.pincode) throw new Error("Add the senior's pincode to their address first.");
       if (homeService && !servesPincode(partner, senior.pincode)) throw new Error(`${partner.name} does not serve pincode ${senior.pincode}.`);
+      if (b.type === "therapy" && needsDoctorApproval(senior.health) && !b.doctorApproved) throw new Error("Please confirm a doctor has approved massage for this senior.");
       if (new Date(b.when) <= new Date()) throw new Error("Please select a future time.");
-      if (b.type === "fitness" && db.bookings.some((existing) => existing.type === "fitness" && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
+      if ((b.type === "fitness" || b.type === "therapy") && db.bookings.some((existing) => existing.type === b.type && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
       const sid = senior.id;
       const subscription = b.subscriptionId ? db.care.subscriptions.find(s => s.id === b.subscriptionId && s.seniorId === sid && hasActiveSubscription(s) && s.remaining > 0) : undefined;
       if (b.subscriptionId && (!subscription || b.type !== 'fitness' || subscriptionCoach(subscription, db.care.plans) !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
       // Stores and kitchens with their own verified riders: the server offers the order to their nearest free rider.
-      const ownRiders = b.type !== "fitness" && db.delivery.some((d) => d.ownerPartnerId === b.partnerId && d.verified);
-      const rider = b.type === "fitness" || ownRiders ? null : assignDelivery(db.delivery.filter((d) => !d.ownerPartnerId), db.bookings);
-      if (b.type !== "fitness" && !ownRiders && !rider) throw new Error("No verified delivery partner is available right now. Please try again later.");
+      const visit = b.type === "fitness" || b.type === "therapy";
+      const ownRiders = !visit && db.delivery.some((d) => d.ownerPartnerId === b.partnerId && d.verified);
+      const rider = visit || ownRiders ? null : assignDelivery(db.delivery.filter((d) => !d.ownerPartnerId), db.bookings);
+      if (!visit && !ownRiders && !rider) throw new Error("No verified delivery partner is available right now. Please try again later.");
       const booking: Booking = { ...b, id: uid("b"), createdAt: new Date().toISOString(), status: b.type === "medicine" ? "pending_review" : "confirmed", seniorId: sid, bookedBy: me.id, upiRef: b.upiRef ?? "UPI" + Math.floor(1e6 + Math.random() * 9e6), ...(rider ? { deliveryId: rider.id, deliveryName: rider.name } : {}) };
       const who = me.id === sid ? senior.name : `${me.name} (for ${senior.name})`;
       const time = (x: Date) => x.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
       const helper = ownRiders ? `${b.partnerName}'s delivery partner will be assigned shortly — track them under Bookings` : rider ? `Delivery by ${rider.name} (verified) around ${time(new Date(b.when))}` : b.videoUrl ? `${b.partnerName} · online video link in Bookings` : `${b.partnerName} arrives ${time(arrivalWindow(b).from)}–${time(arrivalWindow(b).to)}`;
-      const whoRef: Notice["who"] = rider ? { kind: "delivery", id: rider.id, name: rider.name } : ownRiders ? { kind: b.type === "meal" ? "kitchen" : "pharmacy", id: b.partnerId, name: b.partnerName } : { kind: "coach", id: b.partnerId, name: b.partnerName };
-      update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${b.type === "fitness" ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${helper} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via Razorpay`}`, whoRef) }));
+      const whoRef: Notice["who"] = rider ? { kind: "delivery", id: rider.id, name: rider.name } : ownRiders ? { kind: b.type === "meal" ? "kitchen" : "pharmacy", id: b.partnerId, name: b.partnerName } : { kind: b.type === "therapy" ? "therapist" : "coach", id: b.partnerId, name: b.partnerName };
+      update((d) => ({ ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(s => s.id === subscription?.id ? { ...s, remaining: s.remaining - 1 } : s) }, bookings: [booking, ...d.bookings], notices: notifyAll(d, sid, `${visit ? "Session booked" : "Order received"}: ${b.title}`, `${who} · ${b.partnerName} · ${new Date(b.when).toLocaleString("en-IN")} · ${helper} · ${subscription ? 'Subscription credit used' : `₹${b.amount} paid via Razorpay`}`, whoRef) }));
       return booking;
     },
     setStatus: (id, s) => update((d) => {
@@ -475,7 +478,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPartnerPhoto: (kind, id, photo) => {
       if (me?.role !== "admin") return "Only administrators can change partner photos.";
       if (photo !== undefined && (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 60000)) return "Use a JPG, PNG or WebP photo (it is resized automatically).";
-      const key = ({ coach: "coaches", kitchen: "kitchens", pharmacy: "pharmacies", delivery: "delivery" } as const)[kind];
+      const key = ({ coach: "coaches", kitchen: "kitchens", pharmacy: "pharmacies", delivery: "delivery", therapist: "therapists" } as const)[kind];
       update((d) => ({ ...d, [key]: (d[key] as { id: string; photo?: string }[]).map((x) => (x.id === id ? { ...x, photo } : x)) }) as DB);
       return null;
     },

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Dumbbell, Soup, Pill, ArrowRight, CalendarClock, AlarmClock } from "lucide-react";
+import { Dumbbell, Soup, Pill, HandHeart, ArrowRight, CalendarClock, AlarmClock } from "lucide-react";
 import { Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { useStore } from "@/lib/store";
 import { CONDITION_LABEL } from "@/lib/seed";
@@ -24,6 +24,7 @@ const TILES = [
   { to: "/fitness", title: "Fitness Coaches", sub: "Yoga, mobility & meditation — at home or online", icon: Dumbbell, bg: "bg-tile-fit ring-1 ring-primary/10" },
   { to: "/meals", title: "Health-Suitable Meals", sub: "Dishes chosen for your health needs", icon: Soup, bg: "bg-tile-meal ring-1 ring-accent/15" },
   { to: "/pharmacy", title: "Medicines & Delivery", sub: "Upload prescription, get it delivered", icon: Pill, bg: "bg-tile-med ring-1 ring-primary/10" },
+  { to: "/therapy", title: "Therapy Massage", sub: "Certified therapists, at home", icon: HandHeart, bg: "bg-tile-fit ring-1 ring-primary/10" },
 ] as const;
 
 function HomePage() {
@@ -49,7 +50,7 @@ function HomePage() {
         <div className="mt-3 flex flex-wrap gap-2">{senior.health.conditions.map((c) => <span key={c} className="tag">{CONDITION_LABEL[c]}</span>)}</div>
       )}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {TILES.map((tile) => (
           <Link key={tile.to} to={tile.to} className="group surface flex flex-col p-5 transition hover:-translate-y-0.5 hover:border-primary/40">
             <span className={`grid h-11 w-11 place-items-center rounded-xl ${tile.bg}`}><tile.icon className="h-6 w-6 text-primary" strokeWidth={2} /></span>

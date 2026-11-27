@@ -1,7 +1,7 @@
 // Server-only: creates the shared demo data in Lovable Cloud once (partners, dishes, demo accounts, sample bookings).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedNotices, seedPharmacies, seedUsers } from "./seed";
+import { seedBookings, seedCoaches, seedDelivery, seedDishes, seedKitchens, seedNotices, seedPharmacies, seedTherapists, seedUsers } from "./seed";
 import { freshCare } from "./care";
 import { phoneEmail } from "./cloud";
 
@@ -26,6 +26,7 @@ export async function ensureDemoData(admin: Admin): Promise<void> {
     ...seedKitchens.map((x, i) => ({ kind: "kitchen", id: x.id, ord: i, data: x })),
     ...seedDishes.map((x, i) => ({ kind: "dish", id: x.id, ord: i, data: x })),
     ...seedPharmacies.map((x, i) => ({ kind: "pharmacy", id: x.id, ord: i, data: x })),
+    ...seedTherapists.map((x, i) => ({ kind: "therapist", id: x.id, ord: i, data: x })),
     ...seedDelivery.map((x, i) => ({ kind: "delivery", id: x.id, ord: i, data: x })),
     ...freshCare().plans.map((x, i) => ({ kind: "plan", id: x.id, ord: i, data: x })),
   ].map((r) => ({ ...r, data: r.data as unknown as Json }));

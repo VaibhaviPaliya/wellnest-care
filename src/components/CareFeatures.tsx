@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CheckField } from "@/components/CheckField";
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
-import { Check, Play, MapPin } from 'lucide-react';
+import { Check, Play, MapPin, HandHeart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { UpiCheckout } from '@/components/Shell';
@@ -26,13 +26,12 @@ export function MetricsFields({ value, onChange }: { value?: Metrics; onChange: 
 }
 
 export function FitnessExtras() {
-  const { senior, requestCare } = useStore();
-  const [therapy, setTherapy] = useState('');
+  const { senior } = useStore();
   if (!senior?.consent?.given) return null;
   return <section className="my-6 space-y-5 border-y py-6">
     <ExercisePlans />
     <MyPacks />
-    <div><h3 className="text-base font-semibold">Therapy massage · home visit</h3><p className="text-muted-foreground">Professional approval required before scheduling or payment. Demo requests do not book a therapist.</p><label className="mt-3 block font-bold">Goals, preferred date and relevant clinician advice<textarea className="field mt-1" rows={2} maxLength={2000} value={therapy} onChange={e => setTherapy(e.target.value)} /></label><Button variant="care" size="care" className="btn btn-outline mt-3" disabled={!therapy.trim()} onClick={() => { const error = requestCare('therapy', therapy); if (error) toast.error(error); else { setTherapy(''); toast.success('Sent for professional review.'); } }}>Request therapy review</Button><RequestList kind="therapy" /></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-muted p-4"><div><h3 className="flex items-center gap-2 text-base font-semibold"><HandHeart className="h-5 w-5 text-primary" />Therapy massage · home visit</h3><p className="text-muted-foreground">Certified, verified therapists. Book a gentle massage at home.</p></div><Link to="/therapy" className="btn btn-outline">Find a therapist</Link></div>
   </section>;
 }
 

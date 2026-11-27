@@ -4,6 +4,7 @@ export const FLOW: Record<Booking["type"], Status[]> = {
   fitness: ["confirmed", "in_progress", "completed"],
   meal: ["confirmed", "in_progress", "out_for_delivery", "completed"],
   medicine: ["pending_review", "confirmed", "out_for_delivery", "completed"],
+  therapy: ["confirmed", "in_progress", "completed"],
 };
 
 export function canManageSenior(actor: User | null, senior: User | null): boolean {
@@ -35,7 +36,7 @@ export function sessionDate(day: number, slot: string, now = new Date()): Date {
   return date;
 }
 
-export function isSlotAvailable(day: number, slot: string, coachId: string, bookings: Booking[], now = new Date()): boolean {
+export function isSlotAvailable(day: number, slot: string, coachId: string, bookings: Booking[], now = new Date(), type: Booking["type"] = "fitness"): boolean {
   const date = sessionDate(day, slot, now);
-  return date > now && !bookings.some((b) => b.type === "fitness" && b.partnerId === coachId && b.status !== "cancelled" && new Date(b.when).getTime() === date.getTime());
+  return date > now && !bookings.some((b) => b.type === type && b.partnerId === coachId && b.status !== "cancelled" && new Date(b.when).getTime() === date.getTime());
 }

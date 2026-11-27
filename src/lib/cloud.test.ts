@@ -6,6 +6,7 @@ import type { DB } from "./store";
 
 const K = "kamala-uuid", A = "arjun-uuid";
 const base = (over: Partial<DB> = {}): DB => ({
+  therapists: [],
   users: [
     { id: K, phone: "9876543210", name: "Kamala", role: "senior", linkedSeniorIds: [], consent: { given: true, at: "2026-11-01T00:00:00Z" }, health: { conditions: ["diabetes"], diet: "veg", mobility: "assisted", allergies: "" } },
     { id: A, phone: "9123456789", name: "Arjun", role: "family", linkedSeniorIds: [K] },

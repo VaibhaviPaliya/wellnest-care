@@ -56,7 +56,7 @@ export interface PartnerListing {
   /** Server-maintained from verified reviews. */
   ratingSummary?: import("./reviews").RatingSummary;
 }
-export type PartnerType = "pharmacy" | "kitchen" | "coach";
+export type PartnerType = "pharmacy" | "kitchen" | "coach" | "therapist";
 export interface Coach extends PartnerListing {
   /** Monthly session packs priced by the coach. */
   packs?: import("./packs").Pack[];
@@ -65,6 +65,12 @@ export interface Coach extends PartnerListing {
   slots: string[]; verified: boolean; bio: string; rating: number; years: number;
   /** Optional uploaded photo (small data URL). Without one an illustrated avatar is shown. */
   photo?: string;
+}
+export interface TherapyService { id: string; name: string; minutes: number; price: number; }
+/** Licensed massage / physical therapist making home visits. */
+export interface Therapist extends PartnerListing {
+  id: string; name: string; verified: boolean; services: TherapyService[]; slots: string[];
+  bio: string; years: number; gender?: "female" | "male"; rating?: number; photo?: string;
 }
 export interface Kitchen extends PartnerListing { id: string; name: string; area: string; verified: boolean; kind?: 'dabba' | 'restaurant'; customizes?: boolean; photo?: string; }
 export interface Dish {
@@ -82,12 +88,14 @@ export interface DeliveryPartner {
   /** Private fields, loaded only for the rider, their store and admins. */
   phone?: string; riderUserId?: string; aadhaarName?: string; docUploadedAt?: string;
 }
-export type PartnerKind = "coach" | "kitchen" | "pharmacy" | "delivery";
+export type PartnerKind = "coach" | "kitchen" | "pharmacy" | "delivery" | "therapist";
 export interface Medicine { id: string; name: string; dose: string; price: number; }
 
 export type Status = "confirmed" | "in_progress" | "out_for_delivery" | "completed" | "cancelled" | "pending_review";
 export interface Booking {
-  id: string; type: "fitness" | "meal" | "medicine"; seniorId: string; bookedBy: string;
+  id: string; type: "fitness" | "meal" | "medicine" | "therapy"; seniorId: string; bookedBy: string;
+  /** Therapy: the chosen service, and the safety confirmation for seniors with heart/BP conditions or limited mobility. */
+  serviceId?: string; doctorApproved?: boolean;
   title: string; partnerId: string; partnerName: string; amount: number;
   when: string; createdAt: string; status: Status; detail: string;
   items?: { name: string; qty: number; price: number }[];
@@ -141,6 +149,18 @@ export const seedCoaches: Coach[] = [
   { id: "c3", name: "Ananya Rao", types: ["meditation"], level: "gentle", mode: ["online"], price: 299, slots: ["06:30", "19:00", "20:00"], verified: true, bio: "Guided calm sessions for sleep & stress.", rating: 4.7, years: 8, servicePincodes: [] },
   { id: "c4", name: "Vikram Desai", types: ["yoga", "mobility"], level: "moderate", mode: ["home", "online"], price: 599, slots: ["07:30", "10:00", "18:00"], verified: true, bio: "Strength and flexibility for active seniors.", rating: 4.6, years: 10, servicePincodes: ["560038", "560008", "560001", "560034"] },
   { id: "c5", name: "Sunil Mehta", types: ["yoga"], level: "moderate", mode: ["online"], price: 349, slots: ["06:00", "18:30"], verified: false, bio: "Awaiting background verification.", rating: 0, years: 3, servicePincodes: [] },
+];
+
+export const seedTherapists: Therapist[] = [
+  { id: "t1", name: "Lakshmi Prasad", verified: true, gender: "female", years: 11, bio: "Certified geriatric massage therapist; gentle techniques for joint pain and stiffness.", slots: ["10:00", "15:00", "17:30"],
+    services: [{ id: "sv-relax45", name: "Relaxation massage", minutes: 45, price: 899 }, { id: "sv-joint60", name: "Joint-pain therapy", minutes: 60, price: 1199 }],
+    servicePincodes: ["560011", "560041", "560069", "560070", "560004"], certifications: [{ id: "seed-1", name: "Diploma in Massage Therapy", issuer: "Kerala Ayurveda Academy" }] },
+  { id: "t2", name: "Arvind Menon", verified: true, gender: "male", years: 8, bio: "Physiotherapy-trained; mobility and back-pain sessions at home.", slots: ["09:00", "12:00", "16:00"],
+    services: [{ id: "sv-back45", name: "Back & neck relief", minutes: 45, price: 999 }, { id: "sv-mob60", name: "Mobility therapy", minutes: 60, price: 1299 }],
+    servicePincodes: ["560034", "560095", "560076", "560068", "560011"] },
+  { id: "t3", name: "Gurpreet Kaur", verified: true, gender: "female", years: 9, bio: "Gentle massage for seniors, including bed-bound clients.", slots: ["10:30", "14:00", "17:00"],
+    services: [{ id: "sv-gentle45", name: "Gentle full-body massage", minutes: 45, price: 949 }],
+    servicePincodes: ["160022", "160017", "160020", "160023"] },
 ];
 
 export const seedKitchens: Kitchen[] = [

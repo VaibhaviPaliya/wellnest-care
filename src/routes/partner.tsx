@@ -4,14 +4,14 @@ import { MyCertificates } from "@/components/Certificates";
 import { CheckField } from "@/components/CheckField";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BadgeCheck, Bike, Clock, Crosshair, Dumbbell, Navigation, Phone, Pill, Soup, UserPlus, XCircle, Pencil, Trash2, MapPin } from "lucide-react";
+import { BadgeCheck, Bike, Clock, Crosshair, Dumbbell, Navigation, Phone, Pill, Soup, UserPlus, XCircle, Pencil, Trash2, MapPin, HandHeart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, fmtWhen, STATUS_LABEL } from "@/components/Shell";
 import { AddressFields, PincodeChips } from "@/components/AddressFields";
 import { useStore } from "@/lib/store";
 import { EMPTY_ADDRESS, formatAddress, isPincode } from "@/lib/pincode";
 import { LICENCE_LABEL, PARTNER_LABEL, applicationProblem, listingStatus, type Listing, type PartnerApplication } from "@/lib/partners";
-import { TAG_LABEL, type Booking, type Coach, type DeliveryPartner, type Dish, type Kitchen, type PartnerType, type Pharmacy } from "@/lib/seed";
+import { TAG_LABEL, type Booking, type Coach, type DeliveryPartner, type Dish, type Kitchen, type PartnerType, type Pharmacy, type Therapist, type TherapyService } from "@/lib/seed";
 import { BookingTracker, trackable } from "@/components/BookingTracker";
 import { LiveMap, type MapPoint } from "@/components/LiveMap";
 import { useLiveLocation } from "@/lib/useLiveLocation";
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/partner")({
   component: () => <Shell roles={["partner"]}><PartnerDashboard /></Shell>,
 });
 
-const KIND_ICON = { pharmacy: Pill, kitchen: Soup, coach: Dumbbell } as const;
+const KIND_ICON = { pharmacy: Pill, kitchen: Soup, coach: Dumbbell, therapist: HandHeart } as const;
 
 function PartnerDashboard() {
   const { myListing } = useStore();
@@ -60,11 +60,11 @@ function PartnerDashboard() {
       ) : (
         <>
           <ListingSummary kind={kind} listing={listing} />
-          {kind !== "coach" && listing.verified && <DeliveryTeam store={listing} />}
+          {(kind === "pharmacy" || kind === "kitchen") && listing.verified && <DeliveryTeam store={listing} />}
           {kind === "kitchen" && listing.verified && <Menu kitchen={listing as Kitchen} />}
           {kind === "coach" && listing.verified && <CoachPlans coachId={listing.id} />}
           {kind === "coach" && listing.verified && <CoachPacks coach={listing as Coach} />}
-          {kind === "coach" && <MyCertificates />}
+          {(kind === "coach" || kind === "therapist") && <MyCertificates />}
           <Orders listing={listing} kind={kind} />
         </>
       )}
@@ -90,7 +90,7 @@ function StatusCard({ listing, onEdit }: { listing: Listing; onEdit: () => void 
 }
 
 function ListingSummary({ kind, listing }: { kind: PartnerType; listing: Listing }) {
-  const c = listing as Coach, k = listing as Kitchen, p = listing as Pharmacy;
+  const c = listing as Coach, k = listing as Kitchen, p = listing as Pharmacy, th = listing as Therapist;
   const rows: [string, string][] = [
     [LICENCE_LABEL[kind], listing.licence ?? "—"],
     ["Contact", listing.contactPhone ? `+91 ${listing.contactPhone}` : "—"],
@@ -98,6 +98,7 @@ function ListingSummary({ kind, listing }: { kind: PartnerType; listing: Listing
     ...(kind === "pharmacy" ? [["Typical delivery time", p.eta]] as [string, string][] : []),
     ...(kind === "kitchen" ? [["Type", k.kind === "restaurant" ? "Restaurant" : "Home dabba service"], ["Customises meals", k.customizes ? "Yes" : "No"]] as [string, string][] : []),
     ...(kind === "coach" ? [["Classes", c.types.join(", ")], ["Mode", c.mode.map((m) => (m === "home" ? "Home visits" : "Online")).join(" + ")], ["Price", `₹${c.price} per session`], ["Time slots", c.slots.join(", ")]] as [string, string][] : []),
+    ...(kind === "therapist" ? [["Services", (th.services ?? []).map((s) => `${s.name} (${s.minutes} min, ₹${s.price})`).join("; ")], ["Therapist", th.gender === "female" ? "Female" : th.gender === "male" ? "Male" : "Not stated"], ["Time slots", (th.slots ?? []).join(", ")]] as [string, string][] : []),
   ];
   return (
     <section className="surface mt-6 p-5">
@@ -113,12 +114,14 @@ function ListingSummary({ kind, listing }: { kind: PartnerType; listing: Listing
 }
 
 const fromListing = (kind: PartnerType, l?: Listing): PartnerApplication => {
-  const c = l as Coach | undefined, k = l as Kitchen | undefined, p = l as Pharmacy | undefined;
+  const c = l as Coach | undefined, k = l as Kitchen | undefined, p = l as Pharmacy | undefined, th = l as Therapist | undefined;
+  const isT = kind === "therapist";
   return {
     name: l?.name ?? "", licence: l?.licence ?? "", contactPhone: l?.contactPhone ?? "", address: l?.address ?? EMPTY_ADDRESS,
     servicePincodes: l?.servicePincodes ?? [], eta: p?.eta ?? "60 min", kitchenKind: k?.kind ?? "dabba", customizes: k?.customizes ?? true,
-    types: c?.types ?? [], mode: c?.mode ?? ["home"], level: c?.level ?? "gentle", price: c?.price ?? 499, slots: c?.slots ?? ["09:00", "17:00"],
-    bio: c?.bio ?? "", years: c?.years ?? 0,
+    types: c?.types ?? [], mode: c?.mode ?? ["home"], level: c?.level ?? "gentle", price: c?.price ?? 499, slots: (isT ? th?.slots : c?.slots) ?? ["10:00", "16:00"],
+    bio: (isT ? th?.bio : c?.bio) ?? "", years: (isT ? th?.years : c?.years) ?? 0,
+    services: th?.services ?? [{ id: "sv-new-1", name: "Gentle full-body massage", minutes: 60, price: 899 }], gender: th?.gender,
   };
 };
 
@@ -131,13 +134,13 @@ function PartnerForm({ kind: fixedKind, listing, onDone }: { kind?: PartnerType;
   const set = <K extends keyof PartnerApplication>(k: K, v: PartnerApplication[K]) => setA((x) => ({ ...x, [k]: v }));
 
   if (!kind) return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {(["pharmacy", "kitchen", "coach"] as const).map((k) => {
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {(["pharmacy", "kitchen", "coach", "therapist"] as const).map((k) => {
         const Icon = KIND_ICON[k];
         return (
-          <button key={k} type="button" onClick={() => setKind(k)} className="surface flex flex-col items-start gap-2 p-5 text-left transition hover:border-primary">
+          <button key={k} type="button" onClick={() => { const f = fromListing(k, listing); setKind(k); setA(f); setSlotText(f.slots?.join(", ") ?? ""); }} className="surface flex flex-col items-start gap-2 p-5 text-left transition hover:border-primary">
             <Icon className="h-8 w-8 text-primary" /><span className="text-base font-bold">{PARTNER_LABEL[k]}</span>
-            <span className="text-sm text-muted-foreground">{k === "pharmacy" ? "Deliver prescription and OTC medicines" : k === "kitchen" ? "Health-suited meals and dabbas" : "Yoga, mobility or meditation — home or online"}</span>
+            <span className="text-sm text-muted-foreground">{k === "pharmacy" ? "Deliver prescription and OTC medicines" : k === "kitchen" ? "Health-suited meals and dabbas" : k === "coach" ? "Yoga, mobility or meditation — home or online" : "Gentle therapy massage at seniors’ homes"}</span>
           </button>
         );
       })}
@@ -163,18 +166,18 @@ function PartnerForm({ kind: fixedKind, listing, onDone }: { kind?: PartnerType;
         {!fixedKind && <button type="button" className="text-sm font-semibold text-primary underline" onClick={() => setKind(null)}>Change type</button>}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2"><label htmlFor="pn" className="mb-1 block font-bold">{kind === "coach" ? "Your full name" : "Business name"}</label><input id="pn" className="field" maxLength={120} value={a.name} onChange={(e) => set("name", e.target.value)} /></div>
+        <div className="sm:col-span-2"><label htmlFor="pn" className="mb-1 block font-bold">{kind === "coach" || kind === "therapist" ? "Your full name" : "Business name"}</label><input id="pn" className="field" maxLength={120} value={a.name} onChange={(e) => set("name", e.target.value)} /></div>
         <div><label htmlFor="pl" className="mb-1 block font-bold">{LICENCE_LABEL[kind]}</label><input id="pl" className="field" maxLength={80} value={a.licence} onChange={(e) => set("licence", e.target.value)} /></div>
         <div><label htmlFor="pp" className="mb-1 block font-bold">Contact mobile</label>
           <div className="flex gap-2"><span className="field w-auto shrink-0 font-semibold">+91</span><input id="pp" className="field" inputMode="numeric" maxLength={10} value={a.contactPhone} onChange={(e) => set("contactPhone", e.target.value.replace(/\D/g, ""))} /></div></div>
       </div>
       <fieldset>
-        <legend className="mb-2 text-base font-bold">{kind === "coach" ? "Your base address" : "Business address"}</legend>
+        <legend className="mb-2 text-base font-bold">{kind === "coach" || kind === "therapist" ? "Your base address" : "Business address"}</legend>
         <AddressFields idPrefix="biz" value={a.address} onChange={(addr) => setA((x) => ({ ...x, address: addr, servicePincodes: x.servicePincodes.length || !isPincode(addr.pincode) ? x.servicePincodes : [addr.pincode] }))} />
       </fieldset>
       <div>
         <PincodeChips value={a.servicePincodes} onChange={(v) => set("servicePincodes", v)} />
-        <p className="mt-1 text-xs text-muted-foreground">{kind === "coach" ? "Where you can make home visits." : "Where you can deliver."} Your own pincode is added automatically; add nearby ones too.</p>
+        <p className="mt-1 text-xs text-muted-foreground">{kind === "coach" || kind === "therapist" ? "Where you can make home visits." : "Where you can deliver."} Your own pincode is added automatically; add nearby ones too.</p>
       </div>
 
       {kind === "pharmacy" && (
@@ -203,6 +206,34 @@ function PartnerForm({ kind: fixedKind, listing, onDone }: { kind?: PartnerType;
           </div>
           <div><label htmlFor="cs" className="mb-1 block font-bold">Daily time slots</label><input id="cs" className="field" placeholder="07:00, 09:00, 17:00" value={slotText} onChange={(e) => setSlotText(e.target.value)} /><p className="mt-1 text-xs text-muted-foreground">24-hour times, separated by commas.</p></div>
           <div><label htmlFor="cb" className="mb-1 block font-bold">Short bio</label><textarea id="cb" rows={2} maxLength={300} className="field" value={a.bio} onChange={(e) => set("bio", e.target.value)} placeholder="e.g. Physio-trained, 10 years teaching chair yoga to seniors" /></div>
+        </div>
+      )}
+
+      {kind === "therapist" && (
+        <div className="space-y-4">
+          <fieldset><legend className="mb-2 font-bold">Services you offer</legend>
+            <ul className="space-y-2">
+              {(a.services ?? []).map((sv, i) => {
+                const upd = (patch: Partial<TherapyService>) => set("services", (a.services ?? []).map((x, j) => (j === i ? { ...x, ...patch } : x)));
+                return (
+                  <li key={sv.id} className="grid gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
+                    <input aria-label="Service name" className="field" maxLength={80} value={sv.name} onChange={(e) => upd({ name: e.target.value })} placeholder="e.g. Foot and leg massage" />
+                    <select aria-label="Minutes" className="field" value={sv.minutes} onChange={(e) => upd({ minutes: Number(e.target.value) })}>{[15, 30, 45, 60, 75, 90, 120].map((m) => <option key={m} value={m}>{m} min</option>)}</select>
+                    <input aria-label="Price in rupees" className="field" inputMode="numeric" value={sv.price || ""} onChange={(e) => upd({ price: Number(e.target.value.replace(/\D/g, "")) })} placeholder="₹" />
+                    <Button type="button" variant="care" size="care" className="btn btn-outline" aria-label={`Remove ${sv.name || "service"}`} disabled={(a.services ?? []).length <= 1} onClick={() => set("services", (a.services ?? []).filter((_, j) => j !== i))}><Trash2 className="h-4 w-4" /></Button>
+                  </li>
+                );
+              })}
+            </ul>
+            {(a.services ?? []).length < 6 && <Button type="button" variant="care" size="care" className="btn btn-outline mt-2" onClick={() => set("services", [...(a.services ?? []), { id: `sv-new-${Date.now().toString(36)}`, name: "", minutes: 45, price: 699 }])}><Plus className="h-4 w-4" />Add service</Button>}
+          </fieldset>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><label htmlFor="tg" className="mb-1 block font-bold">Therapist</label><select id="tg" className="field" value={a.gender ?? ""} onChange={(e) => set("gender", (e.target.value || undefined) as PartnerApplication["gender"])}><option value="">Prefer not to say</option><option value="female">Female</option><option value="male">Male</option></select><p className="mt-1 text-xs text-muted-foreground">Many seniors prefer a therapist of the same gender.</p></div>
+            <div><label htmlFor="ty" className="mb-1 block font-bold">Years of experience</label><input id="ty" className="field" inputMode="numeric" maxLength={2} value={a.years ?? ""} onChange={(e) => set("years", Number(e.target.value.replace(/\D/g, "")) || 0)} /></div>
+          </div>
+          <div><label htmlFor="ts" className="mb-1 block font-bold">Daily time slots</label><input id="ts" className="field" placeholder="10:00, 14:00, 17:00" value={slotText} onChange={(e) => setSlotText(e.target.value)} /><p className="mt-1 text-xs text-muted-foreground">24-hour times, separated by commas.</p></div>
+          <div><label htmlFor="tb" className="mb-1 block font-bold">Short bio</label><textarea id="tb" rows={2} maxLength={300} className="field" value={a.bio} onChange={(e) => set("bio", e.target.value)} placeholder="e.g. Certified Ayurvedic therapist, 8 years with elderly clients" /></div>
+          <p className="rounded-xl bg-muted p-3 text-sm">Upload your therapy certificate below after submitting. Seniors with heart conditions, high BP or limited mobility can book only after confirming their doctor has approved massage.</p>
         </div>
       )}
 
@@ -326,9 +357,10 @@ function DeliveryTeam({ store }: { store: Listing }) {
 /** Orders for stores and kitchens (dispatch, reassign, track) and visits for coaches (share location, navigate). */
 function Orders({ listing, kind }: { listing: Listing; kind: PartnerType }) {
   const { db, refresh } = useStore();
+  const visitor = kind === "coach" || kind === "therapist";
   const [now, setNow] = useState(Date.now());
   const [trip, setTrip] = useState<string | null>(null); // coach: booking they are travelling to
-  const { pos, error: gpsError } = useLiveLocation(kind === "coach" && !!trip);
+  const { pos, error: gpsError } = useLiveLocation(visitor && !!trip);
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), 1000);
     const poll = setInterval(() => void refresh(), 15000);
@@ -339,9 +371,9 @@ function Orders({ listing, kind }: { listing: Listing; kind: PartnerType }) {
   const done = orders.filter((b) => ["completed", "cancelled"].includes(b.status)).reverse().slice(0, 10);
   return (
     <section className="surface mt-6 p-5">
-      <h2 className="text-lg font-bold">{kind === "coach" ? "Upcoming sessions" : "Orders"}</h2>
+      <h2 className="text-lg font-bold">{visitor ? "Upcoming sessions" : "Orders"}</h2>
       {!listing.verified && <p className="text-sm text-muted-foreground">Orders appear here once your listing is approved.</p>}
-      {kind === "coach" && trip && gpsError && <p role="alert" className="mt-2 text-sm text-destructive">{gpsError}</p>}
+      {visitor && trip && gpsError && <p role="alert" className="mt-2 text-sm text-destructive">{gpsError}</p>}
       <ul className="mt-3 divide-y">
         {open.map((b) => <OrderRow key={b.id} b={b} kind={kind} now={now} trip={trip} setTrip={setTrip} me={pos} />)}
         {listing.verified && !open.length && <li className="py-3 text-muted-foreground">Nothing open right now.</li>}
@@ -359,10 +391,11 @@ function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: Partn
   const { db, refresh } = useStore();
   const [job, setJob] = useState<JobDetails | null>(null);
   const [busy, setBusy] = useState(false);
-  const isVisit = kind === "coach" && !b.videoUrl;
+  const visitor = kind === "coach" || kind === "therapist";
+  const isVisit = visitor && !b.videoUrl;
   const riders = db.delivery.filter((d) => d.ownerPartnerId === b.partnerId && d.verified);
   const customer = db.users.find((u) => u.id === b.seniorId);
-  useEffect(() => { if (isVisit || kind !== "coach") void jobDetails(b.id).then(setJob).catch(() => setJob(null)); }, [b.id, isVisit, kind]);
+  useEffect(() => { if (isVisit || !visitor) void jobDetails(b.id).then(setJob).catch(() => setJob(null)); }, [b.id, isVisit, visitor]);
   const step = async (status: string, msg: string) => {
     setBusy(true);
     try { await partnerStatus(b.id, status); toast.success(msg); await refresh(); }
@@ -383,12 +416,12 @@ function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: Partn
       <p className="text-sm text-muted-foreground">{fmtWhen(b.when)} · {job?.name ?? customer?.name ?? "Customer"} · ₹{b.amount}</p>
       {b.items?.length ? <p className="text-sm">{b.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}</p> : <p className="text-sm">{b.detail}</p>}
       {b.prescriptionData && <a href={b.prescriptionData} download={b.prescription} className="inline-block text-sm text-primary underline">Download prescription</a>}
-      {job && (isVisit || kind !== "coach") && (
+      {job && (isVisit || !visitor) && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"><span className="flex items-start gap-1"><MapPin className="mt-0.5 h-4 w-4 text-primary" />{addressLine(job)}</span>
           {job.phone && <a className="font-semibold text-primary" href={`tel:+91${job.phone}`}><Phone className="mr-1 inline h-3.5 w-3.5" />Call</a>}</p>
       )}
 
-      {kind !== "coach" && (
+      {!visitor && (
         <div className="rounded-xl bg-muted p-3 text-sm">
           <p className="flex items-center gap-2 font-semibold"><Bike className="h-4 w-4 text-primary" />
             {b.deliveryName ? `Rider: ${b.deliveryName}` : b.offer && left > 0 ? `Offered to ${b.offer.riderName ?? "a rider"} · ${left}s` : riders.length ? "Waiting for a rider to come online…" : "WellNest delivery pool"}</p>
@@ -409,12 +442,12 @@ function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: Partn
           ? <Button variant="care" size="care" className="btn btn-outline" onClick={() => setTrip(null)}>Stop sharing location</Button>
           : <Button variant="care" size="care" className="btn btn-accent" onClick={() => setTrip(b.id)}><Navigation className="h-4 w-4" />Start trip · share location</Button>)}
         {isVisit && job && <a className="btn btn-outline" href={navigateUrl(job)} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4" />Navigate{travelling && me && home ? ` · ~${etaMinutes(distanceKm(me, home))} min` : ""}</a>}
-        {kind === "coach" && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => { setTrip(null); void step("in_progress", isVisit ? "Visit started." : "Class started."); }}>{isVisit ? "I’ve arrived — start session" : "Start class"}</Button>}
-        {kind === "coach" && b.status === "in_progress" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("completed", "Session completed.")}>Complete session</Button>}
+        {visitor && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => { setTrip(null); void step("in_progress", isVisit ? "Visit started." : "Class started."); }}>{isVisit ? "I’ve arrived — start session" : "Start class"}</Button>}
+        {visitor && b.status === "in_progress" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("completed", "Session completed.")}>Complete session</Button>}
       </div>
       {isVisit && travelling && points.length > 0 && <LiveMap points={points} height="h-64" />}
       {isVisit && travelling && <p className="text-xs text-muted-foreground">The customer sees your location from 3 hours before the session while this page is open.</p>}
-      {kind !== "coach" && trackable(b) && b.deliveryId && <BookingTracker booking={b} />}
+      {!visitor && trackable(b) && b.deliveryId && <BookingTracker booking={b} />}
     </li>
   );
 }

@@ -18,7 +18,7 @@ export function RatingBadge({
 }) {
   const { db } = useStore();
   const { t } = useT();
-  const listing = [...db.coaches, ...db.kitchens, ...db.pharmacies].find((p) => p.id === partnerId);
+  const listing = [...db.coaches, ...db.kitchens, ...db.pharmacies, ...db.therapists].find((p) => p.id === partnerId);
   const { avg: rating, count } = ratingOf(listing, db.bookings, type, partnerId, fallback);
   if (!rating)
     return (
