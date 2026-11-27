@@ -57,6 +57,13 @@
       "when": 1795996800000,
       "tag": "0006_coach_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1796083200000,
+      "tag": "0007_reviews_certificates",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { CertificateQueue } from '@/components/Certificates';
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -64,6 +65,7 @@ function Admin() {
         <div className="space-y-6">
           <Applications apps={pendingApps} />
           <RiderApplications />
+          <CertificateQueue />
           {([["coaches", "coach", "Fitness coaches", "Unverified partners are hidden from search.", db.coaches.map((c) => ({ id: c.id, name: c.name, sub: [c.types.join(", "), pinsLabel(c)].filter(Boolean).join(" · "), verified: c.verified, type: "fitness" as const, fallback: c.rating, photo: c.photo }))],
              ["kitchens", "kitchen", "Partner kitchens", "Unverified partners are hidden from search.", db.kitchens.map((k) => ({ id: k.id, name: k.name, sub: [k.area, pinsLabel(k)].filter(Boolean).join(" · "), verified: k.verified, type: "meal" as const, fallback: 0, photo: k.photo }))],
              ["pharmacies", "pharmacy", "Pharmacies", "Unverified partners are hidden from search.", db.pharmacies.map((p) => ({ id: p.id, name: p.name, sub: [p.area, pinsLabel(p)].filter(Boolean).join(" · "), verified: p.verified, type: "medicine" as const, fallback: 0, photo: p.photo }))],

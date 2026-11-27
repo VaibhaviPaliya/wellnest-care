@@ -1,7 +1,7 @@
 import { Star } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/i18n";
-import { partnerRating } from "@/lib/care";
+import { ratingOf } from "@/lib/reviews";
 import type { Booking } from "@/lib/seed";
 
 /** Average star rating from completed, reviewed bookings for a kitchen, pharmacy or coach. */
@@ -18,7 +18,8 @@ export function RatingBadge({
 }) {
   const { db } = useStore();
   const { t } = useT();
-  const { rating, count } = partnerRating(type, partnerId, db.bookings, fallback);
+  const listing = [...db.coaches, ...db.kitchens, ...db.pharmacies].find((p) => p.id === partnerId);
+  const { avg: rating, count } = ratingOf(listing, db.bookings, type, partnerId, fallback);
   if (!rating)
     return (
       <span className={`text-sm text-muted-foreground ${className}`}>

@@ -10,6 +10,7 @@ import { demoPhoneSignIn } from './cloud.functions';
 import { toast } from 'sonner';
 import { servesPincode, type Address } from './pincode';
 import { MAX_PLANS_PER_COACH, planProblem } from './exercise';
+import { isDetailed, reviewProblem, type ReviewInput } from './reviews';
 import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
@@ -47,7 +48,7 @@ interface Ctx {
   unlinkFamily: (id: string) => void;
   createBooking: (b: Omit<Booking, "id" | "createdAt" | "status" | "seniorId" | "bookedBy" | "upiRef"> & { upiRef?: string }) => Booking;
   setStatus: (id: string, s: Status) => void;
-  review: (id: string, rating: number, text: string) => void;
+  review: (id: string, r: ReviewInput) => string | null;
   markRead: () => void;
   toggleVerify: (kind: "coaches" | "kitchens" | "pharmacies" | "delivery", id: string) => void;
   /** Admin: set or clear a partner photo (small image data URL). */
@@ -436,7 +437,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const label = { confirmed: "Confirmed", in_progress: "Being prepared", out_for_delivery: "Out for delivery", completed: "Completed", cancelled: "Cancelled", pending_review: "Pharmacy reviewing" }[s];
       return { ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(sub => s === 'cancelled' && b.subscriptionId === sub.id && hasActiveSubscription(sub) ? { ...sub, remaining: Math.min(EXERCISE_SUBSCRIPTION.sessions, sub.remaining + 1) } : sub) }, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, b.deliveryName && ["out_for_delivery", "completed"].includes(s) ? `${b.deliveryName} · delivering from ${b.partnerName}` : `Update from ${b.partnerName}`, b.deliveryId && b.deliveryName ? { kind: "delivery", id: b.deliveryId, name: b.deliveryName } : b.type === "fitness" ? { kind: "coach", id: b.partnerId, name: b.partnerName } : undefined) };
     }),
-    review: (id, rating, text) => update((d) => ({ ...d, bookings: d.bookings.map((x) => (x.id === id && x.status === "completed" && !x.review && me?.role !== "admin" && canAccessBooking(me, x) && Number.isInteger(rating) && rating >= 1 && rating <= 5 ? { ...x, review: { rating, text: text.trim() } } : x)) })),
+    review: (id, r) => {
+      const b = db.bookings.find((x) => x.id === id);
+      if (!b || b.status !== "completed" || b.review || me?.role === "admin" || !canAccessBooking(me, b)) return "You can review only your own completed bookings, once.";
+      const problem = reviewProblem(b.type, r);
+      if (problem) return problem;
+      const rv = { rating: r.rating, text: r.text.trim(), at: new Date().toISOString(), ...(isDetailed(b.type) ? { punctuality: r.punctuality, safety: r.safety, explanation: r.explanation } : {}) };
+      update((d) => ({ ...d, bookings: d.bookings.map((x) => (x.id === id ? { ...x, review: rv } : x)) }));
+      return null;
+    },
     markRead: () => update((d) => ({ ...d, notices: d.notices.map((n) => (n.userId === d.currentUserId ? { ...n, read: true } : n)) })),
     toggleVerify: (kind, id) => {
       if (me?.role !== "admin") return;
@@ -478,7 +487,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const key = PARTNER_KEY[kind];
       const id = myListing?.listing.id ?? uid(kind.slice(0, 2));
-      const listing = { ...fields, id, ownerId: me.id, verified: false, status: "pending", appliedAt: new Date().toISOString(), ...(kind === "coach" ? { rating: 0 } : {}), ...(myListing?.listing.photo ? { photo: myListing.listing.photo } : {}) };
+      const listing = { ...fields, id, ownerId: me.id, verified: false, status: "pending", appliedAt: new Date().toISOString(), ...(kind === "coach" ? { rating: 0 } : {}), ...(myListing?.listing.photo ? { photo: myListing.listing.photo } : {}),
+        // Kept across resubmission, as in Cloud: verified certificates, rating summary, packs, pickup point.
+        ...Object.fromEntries((["certifications", "ratingSummary", "packs", "pickupLat", "pickupLng"] as const).flatMap((k) => { const v = (myListing?.listing as unknown as Record<string, unknown> | undefined)?.[k]; return v === undefined ? [] : [[k, v]]; })) };
       update((d) => {
         const list = d[key] as Listing[];
         return { ...d, [key]: list.some((x) => x.id === id) ? list.map((x) => (x.id === id ? listing : x)) : [...list, listing] } as DB;

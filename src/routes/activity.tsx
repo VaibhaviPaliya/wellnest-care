@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ReviewForm } from "@/components/ReviewForm";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Star, Dumbbell, Soup, Pill } from "lucide-react";
@@ -53,10 +54,8 @@ function Activity() {
 }
 
 function BookingCard({ b }: { b: Booking }) {
-  const { setStatus, review, db, me } = useStore();
+  const { setStatus, db, me, cloud } = useStore();
   const { t } = useT();
-  const [rating, setRating] = useState(0);
-  const [text, setText] = useState("");
   const steps = FLOW[b.type];
   const idx = steps.indexOf(b.status);
   const Icon = ICON[b.type];
@@ -94,26 +93,13 @@ function BookingCard({ b }: { b: Booking }) {
 
       {idx >= 0 && idx < steps.length - 1 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setStatus(b.id, steps[idx + 1])}>Simulate next update →</Button>
+          {!cloud && <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base" onClick={() => setStatus(b.id, steps[idx + 1])}>Simulate next update →</Button>}
           {canCancel(b) && <Button variant="care" size="care" className="btn btn-outline min-h-11 text-base text-destructive" onClick={() => { setStatus(b.id, "cancelled"); toast("Cancelled. Demo refund recorded; no real money was charged."); }}>Cancel</Button>}
         </div>
       )}
       {idx >= 0 && idx < steps.length - 1 && !canCancel(b) && <p className="mt-2 text-sm text-muted-foreground">Cancellation closes 2 hours before the scheduled time.</p>}
 
-      {b.status === "completed" && (b.review ? (
-        <p className="mt-4 rounded-xl bg-muted p-3"><span className="text-warn">{"★".repeat(b.review.rating)}</span> {b.review.text || "Rated"}</p>
-      ) : (
-        <div className="mt-4 rounded-xl bg-muted p-4">
-          <p className="font-bold">How was it? (optional)</p>
-          <div className="mt-2 flex gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Button variant="care" size="care" key={n} aria-label={`${n} stars`} onClick={() => setRating(n)}><Star className={`h-9 w-9 ${n <= rating ? "fill-warn text-warn" : "text-muted-foreground"}`} /></Button>
-            ))}
-          </div>
-          <textarea className="field mt-2" rows={2} placeholder="Write a few words (optional)" value={text} onChange={(e) => setText(e.target.value)} />
-          <Button variant="care" size="care" className="btn btn-primary mt-2" disabled={!rating} onClick={() => { review(b.id, rating, text); toast.success("Thank you for your review!"); }}>Submit review</Button>
-        </div>
-      ))}
+      {b.status === "completed" && <ReviewForm b={b} />}
     </li>
   );
 }

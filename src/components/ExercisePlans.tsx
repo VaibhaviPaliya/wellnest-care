@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Check, Flag, Play, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function ExercisePlans() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="text-base font-bold">{plan.name}</p>
-                  <p className="text-sm text-muted-foreground">by <strong>{coach?.name ?? "a verified coach"}</strong> · {plan.intensity === "moderate" ? "Moderate" : "Gentle"} · {plan.days.reduce((n, d) => n + d.minutes, 0)} min / week</p>
+                  <p className="text-sm text-muted-foreground">by {coach ? <Link to="/coach/$id" params={{ id: coach.id }} className="font-semibold text-primary underline-offset-4 hover:underline">{coach.name}</Link> : "a verified coach"} · {plan.intensity === "moderate" ? "Moderate" : "Gentle"} · {plan.days.reduce((n, d) => n + d.minutes, 0)} min / week</p>
                   {plan.description && <p className="mt-1 text-sm">{plan.description}</p>}
                 </div>
                 <button type="button" className="flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-destructive" onClick={() => setReporting(true)}><Flag className="h-4 w-4" />Report</button>

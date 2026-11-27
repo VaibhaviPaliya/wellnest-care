@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ratingOf } from "@/lib/reviews";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { BadgeCheck, Home, Monitor, Star } from "lucide-react";
+import { Award, BadgeCheck, Home, Monitor, Star } from "lucide-react";
 import { toast } from "sonner";
 import { PageTitle, Shell, UpiCheckout } from "@/components/Shell";
 import { useStore } from "@/lib/store";
@@ -13,7 +14,7 @@ import type { Coach } from "@/lib/seed";
 import { isSlotAvailable, sessionDate } from "@/lib/booking-rules";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { FitnessExtras } from '@/components/CareFeatures';
-import { coachRating, hasActiveSubscription } from '@/lib/care';
+import { hasActiveSubscription } from '@/lib/care';
 
 export const Route = createFileRoute("/fitness")({
   head: () => ({
@@ -77,8 +78,9 @@ function Fitness() {
             <div className="flex items-start justify-between gap-2">
               <PartnerAvatar kind="coach" id={c.id} name={c.name} size={64} />
               <div className="min-w-0 flex-1">
-                <h2 className="flex items-center gap-2 text-lg font-bold">{c.name}<BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" /></h2>
-                <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {coachRating(c.id, db.bookings, c.rating).rating} · {coachRating(c.id, db.bookings, c.rating).count || 'Sample'} reviews</p>
+                <h2 className="flex flex-wrap items-center gap-2 text-lg font-bold"><Link to="/coach/$id" params={{ id: c.id }} className="underline-offset-4 hover:underline">{c.name}</Link><BadgeCheck className="h-6 w-6 text-success" aria-label="Verified" />{c.certifications?.length ? <span className="tag text-primary"><Award className="mr-1 h-3.5 w-3.5" />Certified</span> : null}</h2>
+                <p className="text-muted-foreground">{c.years} yrs experience · <Star className="inline h-4 w-4 fill-warn text-warn" /> {(() => { const r = ratingOf(c, db.bookings, "fitness", c.id, c.rating); return `${r.avg ? r.avg.toFixed(1) : "New"} · ${r.count ? `${r.count} verified review${r.count === 1 ? "" : "s"}` : "no reviews yet"}`; })()}</p>
+                <Link to="/coach/$id" params={{ id: c.id }} className="text-sm font-semibold text-primary underline-offset-4 hover:underline">View profile & reviews</Link>
               </div>
               <p className="font-display text-base font-semibold">₹{c.price}</p>
             </div>

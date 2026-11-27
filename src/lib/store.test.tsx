@@ -88,9 +88,9 @@ describe("WellNest care rules", () => {
 
   it("only accepts ratings for completed services", async () => {
     const result = await store();
-    act(() => result.current.review("b-seed-1", 5, "Great"));
+    act(() => { result.current.review("b-seed-1", { rating: 5, text: "Great" }); });
     expect(result.current.db.bookings.find((b) => b.id === "b-seed-1")?.review).toBeUndefined();
-    act(() => result.current.review("b-seed-3", 4, "Helpful"));
+    act(() => { result.current.review("b-seed-3", { rating: 4, text: "Helpful" }); });
     expect(result.current.db.bookings.find((b) => b.id === "b-seed-3")?.review?.rating).toBe(4);
   });
 

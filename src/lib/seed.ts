@@ -51,6 +51,10 @@ export interface PartnerListing {
   contactPhone?: string;
   /** Drug licence (pharmacy), FSSAI number (kitchen) or certification (coach). */
   licence?: string;
+  /** Certificates approved by WellNest (names only; the files stay private). */
+  certifications?: { id: string; name: string; issuer: string }[];
+  /** Server-maintained from verified reviews. */
+  ratingSummary?: import("./reviews").RatingSummary;
 }
 export type PartnerType = "pharmacy" | "kitchen" | "coach";
 export interface Coach extends PartnerListing {
@@ -85,7 +89,8 @@ export interface Booking {
   title: string; partnerId: string; partnerName: string; amount: number;
   when: string; createdAt: string; status: Status; detail: string;
   items?: { name: string; qty: number; price: number }[];
-  prescription?: string; prescriptionData?: string; videoUrl?: string; review?: { rating: number; text: string };
+  prescription?: string; prescriptionData?: string; videoUrl?: string;
+  review?: { rating: number; text: string; punctuality?: number; safety?: number; explanation?: number; at?: string; hidden?: boolean };
   upiRef: string;
   subscriptionId?: string;
   /** Verified delivery partner assigned to a meal or medicine order. */
