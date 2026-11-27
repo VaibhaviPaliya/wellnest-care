@@ -3,7 +3,21 @@ import type { Booking, DeliveryPartner, HealthProfile } from './seed';
 export interface Nutrition { calories: number; carbs: number; protein: number; }
 export interface Metrics { age: number; height: number; weight: number; sex: 'female' | 'male'; activity: 'sedentary' | 'light' | 'moderate'; }
 export interface ExerciseDay { day: string; title: string; minutes: number; videoUrl?: string; }
-export interface ExercisePlan { id: string; coachId: string; name: string; days: ExerciseDay[]; }
+export interface ExercisePlan {
+  id: string; coachId: string; name: string; days: ExerciseDay[];
+  /** Coach account that created it (coach-made plans). Admin-made plans have none. */
+  ownerId?: string;
+  description?: string;
+  intensity?: "gentle" | "moderate";
+  /** Health conditions this plan must not be shown to. */
+  notFor?: import("./seed").Condition[];
+  /** Mobility levels that can follow it. */
+  mobility?: import("./seed").Mobility[];
+  published?: boolean;
+  /** Hidden by an admin or by repeated reports; seniors no longer see it. */
+  hidden?: boolean; hiddenReason?: "admin" | "reports";
+  updatedAt?: string;
+}
 export interface Subscription { id: string; seniorId: string; planId: string; starts: string; ends: string; remaining: number; cancelled: boolean; }
 export interface CareRequest { id: string; seniorId: string; kind: 'therapy' | 'meal'; detail: string; partnerId?: string; status: 'pending' | 'approved' | 'rejected'; professional?: string; decision?: string; }
 export type ReminderKind = 'medicine' | 'exercise' | 'meal' | 'water' | 'other';
@@ -12,7 +26,7 @@ export interface Reminder { id: string; seniorId: string; kind: ReminderKind; la
 export interface CareData { plans: ExercisePlan[]; subscriptions: Subscription[]; requests: CareRequest[]; completions: { seniorId: string; planId: string; date: string; day: string }[]; reminders: Reminder[]; bookingAlerts: string[]; }
 export const EXERCISE_SUBSCRIPTION = { price: 1999, sessions: 8, days: 30 } as const;
 export const freshCare = (): CareData => ({
-  plans: [{ id: 'plan-chair', coachId: 'c1', name: 'Gentle movement week', days: [
+  plans: [{ id: 'plan-chair', coachId: 'c1', name: 'Gentle movement week', intensity: 'gentle', mobility: ['independent', 'assisted', 'limited'], notFor: [], published: true, days: [
     { day: 'Monday', title: 'Seated breathing', minutes: 10 }, { day: 'Tuesday', title: 'Chair mobility', minutes: 15 },
     { day: 'Wednesday', title: 'Guided relaxation', minutes: 10 }, { day: 'Thursday', title: 'Gentle seated stretches', minutes: 15 },
     { day: 'Friday', title: 'Breathwork and calm', minutes: 10 }, { day: 'Saturday', title: 'Chair yoga', minutes: 15 },

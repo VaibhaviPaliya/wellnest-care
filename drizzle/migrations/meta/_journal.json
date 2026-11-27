@@ -50,6 +50,13 @@
       "when": 1795910400000,
       "tag": "0005_phone_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795996800000,
+      "tag": "0006_coach_plans",
+      "breakpoints": true
     }
   ]
 }

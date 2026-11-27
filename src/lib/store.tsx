@@ -9,6 +9,7 @@ import { cloudMessage, loadCloud, planWrites, runOp, watchCloud, type Op, type S
 import { demoPhoneSignIn } from './cloud.functions';
 import { toast } from 'sonner';
 import { servesPincode, type Address } from './pincode';
+import { MAX_PLANS_PER_COACH, planProblem } from './exercise';
 import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
@@ -85,6 +86,13 @@ interface Ctx {
   reviewRider: (id: string, approve: boolean, note?: string) => string | null;
   /** Reload everything from Cloud (after a server action such as accepting an order). */
   refresh: () => Promise<void>;
+  /** Approved coach: publish or update one of their weekly plans (goes live straight away). */
+  saveCoachPlan: (plan: ExercisePlan) => Promise<string | null>;
+  deleteCoachPlan: (id: string) => Promise<string | null>;
+  /** Senior or family: report a plan as unsafe or wrong. Two reports hide it until an admin reviews. */
+  reportPlan: (id: string, reason: string) => Promise<string | null>;
+  /** Admin: hide or restore a plan (restoring clears its reports). */
+  setPlanHidden: (id: string, hidden: boolean) => Promise<string | null>;
 }
 const C = createContext<Ctx | null>(null);
 
@@ -239,7 +247,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     completeExercise: (planId, day) => {
       if (!senior?.consent?.given || !canManageSenior(me, senior) || !db.care.plans.some(p => p.id === planId && p.days.some(d => d.day === day))) return;
-      const date = new Date().toISOString().slice(0, 10);
+      const date = localDate(new Date());
       update(d => d.care.completions.some(c => c.seniorId === senior.id && c.planId === planId && c.day === day && c.date === date) ? d : ({ ...d, care: { ...d.care, completions: [...d.care.completions, { seniorId: senior.id, planId, date, day }] }, notices: notifyAll(d, senior.id, 'Exercise completed', `${day} · ${new Date().toLocaleString('en-IN')}`) }));
     },
     requestCare: (kind, detail, partnerId) => {
@@ -527,6 +535,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     },
     refresh: async () => { if (cloudUserId) await reload(); },
+    saveCoachPlan: async (plan) => {
+      if (myListing?.kind !== "coach" || !myListing.listing.verified) return "Only an approved fitness coach can publish plans.";
+      const problem = planProblem(plan);
+      if (problem) return problem;
+      const clean: ExercisePlan = { ...plan, name: plan.name.trim(), description: plan.description?.trim() ?? "", days: plan.days.map((d) => ({ day: d.day, title: d.title.trim(), minutes: d.minutes, ...(d.videoUrl?.trim() ? { videoUrl: d.videoUrl.trim() } : {}) })) };
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("coach_save_plan", { _data: clean });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      const mine = db.care.plans.filter((p) => p.ownerId === me!.id);
+      const existing = mine.find((p) => p.id === plan.id);
+      if (!existing && mine.length >= MAX_PLANS_PER_COACH) return `You can publish up to ${MAX_PLANS_PER_COACH} plans. Delete one first.`;
+      const saved: ExercisePlan = { ...clean, id: existing?.id ?? uid("pl"), coachId: myListing.listing.id, ownerId: me!.id, published: true, updatedAt: new Date().toISOString(),
+        ...(existing?.hidden ? { hidden: true, hiddenReason: existing.hiddenReason } : { hidden: undefined, hiddenReason: undefined }) };
+      update((d) => ({ ...d, care: { ...d.care, plans: existing ? d.care.plans.map((p) => (p.id === saved.id ? saved : p)) : [...d.care.plans, saved] } }));
+      return null;
+    },
+    deleteCoachPlan: async (id) => {
+      if (!me || !db.care.plans.some((p) => p.id === id && p.ownerId === me.id)) return "You can only delete your own plans.";
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("coach_delete_plan", { _id: id });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      update((d) => ({ ...d, care: { ...d.care, plans: d.care.plans.filter((p) => p.id !== id) } }));
+      return null;
+    },
+    reportPlan: async (id, reason) => {
+      if (me?.role !== "senior" && me?.role !== "family") return "Only seniors and family members can report a plan.";
+      if (reason.trim().length < 3 || reason.length > 300) return "Tell us briefly what is wrong (3–300 characters).";
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("report_plan", { _id: id, _reason: reason.trim() });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      return null; // browser-only demo: reports are not stored
+    },
+    setPlanHidden: async (id, hidden) => {
+      if (me?.role !== "admin") return "Only administrators can moderate plans.";
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("admin_set_plan_hidden", { _id: id, _hidden: hidden });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      update((d) => ({ ...d, care: { ...d.care, plans: d.care.plans.map((p) => (p.id === id ? (hidden ? { ...p, hidden: true, hiddenReason: "admin" as const } : { ...p, hidden: undefined, hiddenReason: undefined }) : p)) } }));
+      return null;
+    },
     resetDemo: () => {
       if (me?.role !== "admin") return;
       if (cloudUserId) { toast.info("Demo data lives in Lovable Cloud now and is shared by everyone, so it cannot be reset from here."); return; }

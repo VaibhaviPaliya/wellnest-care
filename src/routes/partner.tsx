@@ -13,6 +13,7 @@ import { TAG_LABEL, type Booking, type Coach, type DeliveryPartner, type Dish, t
 import { BookingTracker, trackable } from "@/components/BookingTracker";
 import { LiveMap, type MapPoint } from "@/components/LiveMap";
 import { useLiveLocation } from "@/lib/useLiveLocation";
+import { CoachPlans } from "@/components/CoachPlans";
 import {
   RIDER_STATUS_LABEL, VEHICLES, addressLine, assignRider, currentPosition, distanceKm, etaMinutes, jobDetails, navigateUrl,
   offerSecondsLeft, partnerStatus, removeRider, riderStatus, saveRider, setPickup, type JobDetails,
@@ -59,6 +60,7 @@ function PartnerDashboard() {
           <ListingSummary kind={kind} listing={listing} />
           {kind !== "coach" && listing.verified && <DeliveryTeam store={listing} />}
           {kind === "kitchen" && listing.verified && <Menu kitchen={listing as Kitchen} />}
+          {kind === "coach" && listing.verified && <CoachPlans coachId={listing.id} />}
           <Orders listing={listing} kind={kind} />
         </>
       )}
