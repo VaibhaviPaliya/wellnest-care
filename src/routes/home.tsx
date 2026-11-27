@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import { CONDITION_LABEL } from "@/lib/seed";
 import { useT } from "@/lib/i18n";
 import { localDate } from "@/lib/care";
+import { ExerciseProgress } from "@/components/ExerciseProgress";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -61,6 +62,7 @@ function HomePage() {
         ))}
       </div>
 
+      <ExerciseProgress seniorId={senior.id} name={senior.name.split(" ")[0]} />
       <TodayReminders seniorId={senior.id} />
       <Section title="Today" items={today} empty="Nothing scheduled for today." />
       <Section title="Coming up" items={upcoming} empty="No upcoming bookings yet." />

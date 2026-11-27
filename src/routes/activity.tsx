@@ -68,6 +68,7 @@ function BookingCard({ b }: { b: Booking }) {
           <h2 className="text-base font-semibold">{b.title}</h2>
           <p className="text-muted-foreground">{b.partnerName} · {fmtWhen(b.when)}</p>
           <p className="text-muted-foreground">{b.subscriptionId ? 'Subscription credit' : `₹${b.amount} paid · ${b.upiRef}`} · booked by {by?.id === me?.id ? "you" : by?.name}</p>
+          {b.tripStartedAt && b.status === "confirmed" && <p className="mt-1 font-bold text-primary">{b.partnerName} is on the way — follow them live below.</p>}
           {(b.type === "fitness" || b.type === "therapy") && !b.videoUrl && b.status !== "cancelled" && <p className="mt-1 font-bold">{t(b.type === "therapy" ? "Therapist arrives {from}–{to}" : "Coach arrives {from}–{to}", { from: clock(arrivalWindow(b).from), to: clock(arrivalWindow(b).to) })}</p>}
           {b.deliveryId && b.deliveryName && (
             <p className="mt-2 flex items-center gap-2"><PartnerAvatar kind="delivery" id={b.deliveryId} name={b.deliveryName} size={36} /><span><strong>{b.deliveryName}</strong> · {t("verified delivery partner")}{b.status !== "completed" && b.status !== "cancelled" ? ` · ${t("arrives around {time}", { time: clock(new Date(b.when)) })}` : ""}</span></p>

@@ -14,6 +14,7 @@ import { isDetailed, reviewProblem, type ReviewInput } from './reviews';
 import { MAX_PACKS, packProblem, renewalsDue, subscriptionCoach, type Pack } from './packs';
 import { purchasePack } from './packs.functions';
 import { needsDoctorApproval } from './therapy';
+import { activePlan, missedTwoDays } from './progress';
 import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
@@ -300,21 +301,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const due = dueReminders(db.care.reminders.filter(r => r.seniorId === senior.id), now);
       const soon = bookingsStartingSoon(db.bookings.filter(b => b.seniorId === senior.id), db.care.bookingAlerts, now);
       const renew = renewalsDue(db.care.subscriptions.filter(s => s.seniorId === senior.id), db.care.bookingAlerts, now);
-      if (!due.length && !soon.length && !renew.length) return [];
-      const titles = [...due.map(r => `Reminder: ${r.label}`), ...soon.map(b => `Starting soon: ${b.title}`), ...renew.map(s => `Pack ending soon: ${s.title ?? 'Exercise pack'}`)];
+      const missedOf = (d: DB) => { const mine = d.care.completions.filter(c => c.seniorId === senior.id); return missedTwoDays(senior.id, activePlan(d.care.plans, mine), mine, d.care.bookingAlerts, now); };
+      const missed = missedOf(db);
+      if (!due.length && !soon.length && !renew.length && !missed) return [];
+      const titles = [...due.map(r => `Reminder: ${r.label}`), ...soon.map(b => `Starting soon: ${b.title}`), ...renew.map(s => `Pack ending soon: ${s.title ?? 'Exercise pack'}`), ...(missed ? [`${senior.name} missed 2 exercise days`] : [])];
       const today = localDate(now);
       update(d => {
         // Recompute from the latest state so overlapping timer ticks never fire twice.
         const dueNow = dueReminders(d.care.reminders.filter(r => r.seniorId === senior.id), now);
         const soonNow = bookingsStartingSoon(d.bookings.filter(b => b.seniorId === senior.id), d.care.bookingAlerts, now);
         const renewNow = renewalsDue(d.care.subscriptions.filter(s => s.seniorId === senior.id), d.care.bookingAlerts, now);
-        if (!dueNow.length && !soonNow.length && !renewNow.length) return d;
+        const missedNow = missedOf(d);
+        if (!dueNow.length && !soonNow.length && !renewNow.length && !missedNow) return d;
         const dueIds = new Set(dueNow.map(r => r.id));
         let notices = d.notices;
         for (const r of dueNow) notices = notifyAll({ ...d, notices }, senior.id, `Reminder: ${r.label}`, `Scheduled for ${r.time} today`);
         for (const b of soonNow) notices = notifyAll({ ...d, notices }, senior.id, `Starting soon: ${b.title}`, `${b.partnerName} · ${new Date(b.when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`);
         for (const s of renewNow) notices = notifyAll({ ...d, notices }, senior.id, `Pack ending soon: ${s.title ?? 'Exercise pack'}`, `${s.remaining} session${s.remaining === 1 ? '' : 's'} left · ends ${new Date(s.ends).toLocaleDateString('en-IN')} · renew from the coach's profile (no automatic renewal)`);
-        return { ...d, notices, care: { ...d.care, reminders: d.care.reminders.map(r => dueIds.has(r.id) ? { ...r, lastFired: today } : r), bookingAlerts: [...d.care.bookingAlerts, ...soonNow.map(b => b.id), ...renewNow.map(s => `renew:${s.id}`)].slice(-200) } };
+        if (missedNow) notices = notifyAll({ ...d, notices }, senior.id, `${senior.name} missed 2 exercise days`, `No exercise was marked done on the last two plan days. A gentle call might help — or check whether the plan still suits them.`);
+        return { ...d, notices, care: { ...d.care, reminders: d.care.reminders.map(r => dueIds.has(r.id) ? { ...r, lastFired: today } : r), bookingAlerts: [...d.care.bookingAlerts, ...soonNow.map(b => b.id), ...renewNow.map(s => `renew:${s.id}`), ...(missedNow ? [missedNow] : [])].slice(-200) } };
       });
       return titles;
     },

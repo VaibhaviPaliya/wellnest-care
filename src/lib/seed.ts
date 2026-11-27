@@ -94,6 +94,8 @@ export interface Medicine { id: string; name: string; dose: string; price: numbe
 export type Status = "confirmed" | "in_progress" | "out_for_delivery" | "completed" | "cancelled" | "pending_review";
 export interface Booking {
   id: string; type: "fitness" | "meal" | "medicine" | "therapy"; seniorId: string; bookedBy: string;
+  /** Set by the server when a coach or therapist starts travelling to a home visit. */
+  tripStartedAt?: string;
   /** Therapy: the chosen service, and the safety confirmation for seniors with heart/BP conditions or limited mobility. */
   serviceId?: string; doctorApproved?: boolean;
   title: string; partnerId: string; partnerName: string; amount: number;

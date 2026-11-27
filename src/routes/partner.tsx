@@ -18,7 +18,7 @@ import { useLiveLocation } from "@/lib/useLiveLocation";
 import { CoachPlans } from "@/components/CoachPlans";
 import {
   RIDER_STATUS_LABEL, VEHICLES, addressLine, assignRider, currentPosition, distanceKm, etaMinutes, jobDetails, navigateUrl,
-  offerSecondsLeft, partnerStatus, removeRider, riderStatus, saveRider, setPickup, type JobDetails,
+  offerSecondsLeft, partnerStatus, startTrip, removeRider, riderStatus, saveRider, setPickup, type JobDetails,
 } from "@/lib/riders";
 
 export const Route = createFileRoute("/partner")({
@@ -402,6 +402,12 @@ function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: Partn
     catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t update."); }
     finally { setBusy(false); }
   };
+  const beginTrip = async () => {
+    setBusy(true);
+    try { await startTrip(b.id); setTrip(b.id); toast.success("Trip started — the family has been told you’re on the way."); await refresh(); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t start the trip."); }
+    finally { setBusy(false); }
+  };
   const reassign = async (rider: string) => {
     try { await assignRider(b.id, rider); toast.success("Rider assigned."); await refresh(); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Couldn’t assign."); }
@@ -440,7 +446,7 @@ function OrderRow({ b, kind, now, trip, setTrip, me }: { b: Booking; kind: Partn
         {kind === "kitchen" && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("in_progress", "Marked as being prepared.")}>Start preparing</Button>}
         {isVisit && b.status === "confirmed" && (travelling
           ? <Button variant="care" size="care" className="btn btn-outline" onClick={() => setTrip(null)}>Stop sharing location</Button>
-          : <Button variant="care" size="care" className="btn btn-accent" onClick={() => setTrip(b.id)}><Navigation className="h-4 w-4" />Start trip · share location</Button>)}
+          : <Button variant="care" size="care" className="btn btn-accent" disabled={busy} onClick={() => void beginTrip()}><Navigation className="h-4 w-4" />Start trip · share location</Button>)}
         {isVisit && job && <a className="btn btn-outline" href={navigateUrl(job)} target="_blank" rel="noopener noreferrer"><Navigation className="h-4 w-4" />Navigate{travelling && me && home ? ` · ~${etaMinutes(distanceKm(me, home))} min` : ""}</a>}
         {visitor && b.status === "confirmed" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => { setTrip(null); void step("in_progress", isVisit ? "Visit started." : "Class started."); }}>{isVisit ? "I’ve arrived — start session" : "Start class"}</Button>}
         {visitor && b.status === "in_progress" && <Button variant="care" size="care" className="btn btn-primary" disabled={busy} onClick={() => void step("completed", "Session completed.")}>Complete session</Button>}

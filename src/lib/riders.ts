@@ -68,6 +68,8 @@ export const removeRider = (id: string) => rpc("partner_remove_rider", { _id: id
 export const setPickup = (p: LatLng) => rpc("partner_set_pickup", { _lat: p.lat, _lng: p.lng });
 export const assignRider = (booking: string, rider: string) => rpc("partner_assign_rider", { _booking: booking, _rider: rider });
 export const partnerStatus = (booking: string, status: string) => rpc("partner_update_status", { _booking: booking, _status: status });
+/** Coach / therapist: on the way to a home visit (alerts the senior and family once). */
+export const startTrip = (booking: string) => rpc("partner_start_trip", { _booking: booking });
 export const claimRider = () => rpc<number>("claim_rider");
 export const uploadAadhaar = (doc: string, name: string) => rpc("rider_upload_aadhaar", { _doc: doc, _name: name });
 export const riderDocument = (id: string) => rpc<string | null>("rider_document", { _delivery_id: id });
