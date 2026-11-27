@@ -118,7 +118,9 @@ function changes<T>(prev: T[], next: T[], key: (x: T) => string) {
 }
 
 function careRows(d: DB): { id: string; kind: CareKind; senior_id: string; data: unknown }[] {
-  const seniorOfBooking = (id: string) => d.bookings.find((b) => b.id === id)?.seniorId;
+  // Alert markers: a booking id, "renew:<subscription id>" or "missed:<senior id>:<date>".
+  const seniorOfBooking = (id: string) => id.startsWith("renew:") ? d.care.subscriptions.find((s) => s.id === id.slice(6))?.seniorId
+    : id.startsWith("missed:") ? id.split(":")[1] : d.bookings.find((b) => b.id === id)?.seniorId;
   return [
     ...d.care.reminders.map((x) => ({ id: x.id, kind: "reminder" as const, senior_id: x.seniorId, data: x })),
     ...d.care.subscriptions.map((x) => ({ id: x.id, kind: "subscription" as const, senior_id: x.seniorId, data: x })),

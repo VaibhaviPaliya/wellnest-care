@@ -117,7 +117,7 @@ export function PageTitle({ title, sub, back = true }: { title: string; sub?: st
 }
 
 /** Razorpay checkout (test mode). Opens Razorpay's own window; the booking is saved only after the payment succeeds. */
-export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: (paymentRef: string) => void; onDone: () => void }) {
+export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { open: boolean; amount: number; title: string; onClose: () => void; onPaid: (paymentRef: string, proof?: { orderId: string; signature: string }) => void | Promise<void>; onDone: () => void }) {
   const { me } = useStore();
   // "razorpay": our dialog steps aside so Razorpay's window can take focus.
   const [stage, setStage] = useState<"form" | "preparing" | "razorpay" | "saving" | "done">("form");
@@ -126,8 +126,8 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
   useEffect(() => { if (open) { setStage("form"); setRef(""); busy.current = false; } }, [open]);
   if (!open) return null;
   const reset = (message?: string) => { busy.current = false; setStage("form"); if (message) toast.error(message); };
-  const save = (paymentRef: string) => {
-    try { onPaid(paymentRef); setRef(paymentRef); setStage("done"); busy.current = false; }
+  const save = async (paymentRef: string, proof?: { orderId: string; signature: string }) => {
+    try { await onPaid(paymentRef, proof); setRef(paymentRef); setStage("done"); busy.current = false; }
     catch (error) { reset(`Payment ${paymentRef} went through, but the booking could not be saved: ${error instanceof Error ? error.message : "please try again"}.${RAZORPAY_TEST_MODE ? " This was a test payment, so no real money was taken." : " Contact support for a refund."}`); }
   };
   const pay = async () => {
@@ -153,7 +153,7 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
               const { ok } = await verifyPayment({ data: { orderId: r.razorpay_order_id, paymentId: r.razorpay_payment_id, signature: r.razorpay_signature } });
               if (!ok) throw new Error("Payment could not be verified.");
             }
-            save(r.razorpay_payment_id);
+            await save(r.razorpay_payment_id, r.razorpay_order_id && r.razorpay_signature ? { orderId: r.razorpay_order_id, signature: r.razorpay_signature } : undefined);
           } catch (error) { reset(error instanceof Error ? error.message : "Payment could not be verified."); }
         },
       });

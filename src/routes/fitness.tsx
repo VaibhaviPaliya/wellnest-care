@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { subscriptionCoach } from "@/lib/packs";
 import { ratingOf } from "@/lib/reviews";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
@@ -54,7 +55,7 @@ function Fitness() {
     setSel({ coach, day, slot, mode: sessionMode, kind: type !== "all" && coach.types.includes(type) ? type : coach.types[0] });
   };
   const available = !!sel && isSlotAvailable(sel.day, sel.slot, sel.coach.id, db.bookings);
-  const credit = sel ? db.care.subscriptions.find(s => s.seniorId === senior?.id && hasActiveSubscription(s) && s.remaining > 0 && db.care.plans.find(p => p.id === s.planId)?.coachId === sel.coach.id && sessionDate(sel.day, sel.slot) < new Date(s.ends)) : undefined;
+  const credit = sel ? db.care.subscriptions.find(s => s.seniorId === senior?.id && hasActiveSubscription(s) && s.remaining > 0 && subscriptionCoach(s, db.care.plans) === sel.coach.id && sessionDate(sel.day, sel.slot) < new Date(s.ends)) : undefined;
   const book = (useCredit: boolean, paymentRef?: string) => {
     if (!sel || !available) throw new Error('This slot is no longer available.');
     createBooking({ type: 'fitness', title: `${sel.kind[0].toUpperCase() + sel.kind.slice(1)} · ${sel.mode === 'home' ? 'Home visit' : 'Online live'}`, partnerId: sel.coach.id, partnerName: sel.coach.name, amount: useCredit ? 0 : sel.coach.price, when: sessionDate(sel.day, sel.slot).toISOString(), detail: `${sel.coach.level} level${useCredit ? ' · subscription credit' : ''}`, subscriptionId: useCredit ? credit?.id : undefined, videoUrl: sel.mode === 'online' ? 'https://meet.jit.si/WellNest-' + sel.coach.id + '-' + sessionDate(sel.day, sel.slot).getTime() : undefined, upiRef: paymentRef });

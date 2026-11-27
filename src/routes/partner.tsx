@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { CoachPacks } from "@/components/Packs";
 import { MyCertificates } from "@/components/Certificates";
 import { CheckField } from "@/components/CheckField";
 import { createFileRoute } from "@tanstack/react-router";
@@ -62,6 +63,7 @@ function PartnerDashboard() {
           {kind !== "coach" && listing.verified && <DeliveryTeam store={listing} />}
           {kind === "kitchen" && listing.verified && <Menu kitchen={listing as Kitchen} />}
           {kind === "coach" && listing.verified && <CoachPlans coachId={listing.id} />}
+          {kind === "coach" && listing.verified && <CoachPacks coach={listing as Coach} />}
           {kind === "coach" && <MyCertificates />}
           <Orders listing={listing} kind={kind} />
         </>

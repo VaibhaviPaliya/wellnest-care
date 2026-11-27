@@ -58,6 +58,8 @@ export interface PartnerListing {
 }
 export type PartnerType = "pharmacy" | "kitchen" | "coach";
 export interface Coach extends PartnerListing {
+  /** Monthly session packs priced by the coach. */
+  packs?: import("./packs").Pack[];
   id: string; name: string; types: ("yoga" | "mobility" | "meditation")[];
   level: "gentle" | "moderate"; mode: ("home" | "online")[]; price: number;
   slots: string[]; verified: boolean; bio: string; rating: number; years: number;

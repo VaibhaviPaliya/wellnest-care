@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { servesPincode, type Address } from './pincode';
 import { MAX_PLANS_PER_COACH, planProblem } from './exercise';
 import { isDetailed, reviewProblem, type ReviewInput } from './reviews';
+import { MAX_PACKS, packProblem, renewalsDue, subscriptionCoach, type Pack } from './packs';
+import { purchasePack } from './packs.functions';
 import { PARTNER_KEY, applicationProblem, dishProblem, findMyListing, listingFields, type Listing, type PartnerApplication } from './partners';
 import { EXERCISE_SUBSCRIPTION, arrivalWindow, assignDelivery, bookingsStartingSoon, dueReminders, freshCare, hasActiveSubscription, localDate, safeVideoUrl, validNutrition, validReminder, type CareData, type ExercisePlan, type Nutrition, type Reminder } from './care';
 
@@ -94,6 +96,10 @@ interface Ctx {
   reportPlan: (id: string, reason: string) => Promise<string | null>;
   /** Admin: hide or restore a plan (restoring clears its reports). */
   setPlanHidden: (id: string, hidden: boolean) => Promise<string | null>;
+  /** Approved coach: set their monthly packs (up to 5). */
+  saveCoachPacks: (packs: Pack[]) => Promise<string | null>;
+  /** Senior or family: record a paid pack. In Cloud the server checks the payment before adding credits. */
+  buyPack: (coachId: string, packId: string, paymentRef: string, proof?: { orderId: string; signature: string }) => Promise<void>;
 }
 const C = createContext<Ctx | null>(null);
 
@@ -292,19 +298,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!senior?.consent?.given || !canManageSenior(me, senior)) return [];
       const due = dueReminders(db.care.reminders.filter(r => r.seniorId === senior.id), now);
       const soon = bookingsStartingSoon(db.bookings.filter(b => b.seniorId === senior.id), db.care.bookingAlerts, now);
-      if (!due.length && !soon.length) return [];
-      const titles = [...due.map(r => `Reminder: ${r.label}`), ...soon.map(b => `Starting soon: ${b.title}`)];
+      const renew = renewalsDue(db.care.subscriptions.filter(s => s.seniorId === senior.id), db.care.bookingAlerts, now);
+      if (!due.length && !soon.length && !renew.length) return [];
+      const titles = [...due.map(r => `Reminder: ${r.label}`), ...soon.map(b => `Starting soon: ${b.title}`), ...renew.map(s => `Pack ending soon: ${s.title ?? 'Exercise pack'}`)];
       const today = localDate(now);
       update(d => {
         // Recompute from the latest state so overlapping timer ticks never fire twice.
         const dueNow = dueReminders(d.care.reminders.filter(r => r.seniorId === senior.id), now);
         const soonNow = bookingsStartingSoon(d.bookings.filter(b => b.seniorId === senior.id), d.care.bookingAlerts, now);
-        if (!dueNow.length && !soonNow.length) return d;
+        const renewNow = renewalsDue(d.care.subscriptions.filter(s => s.seniorId === senior.id), d.care.bookingAlerts, now);
+        if (!dueNow.length && !soonNow.length && !renewNow.length) return d;
         const dueIds = new Set(dueNow.map(r => r.id));
         let notices = d.notices;
         for (const r of dueNow) notices = notifyAll({ ...d, notices }, senior.id, `Reminder: ${r.label}`, `Scheduled for ${r.time} today`);
         for (const b of soonNow) notices = notifyAll({ ...d, notices }, senior.id, `Starting soon: ${b.title}`, `${b.partnerName} · ${new Date(b.when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`);
-        return { ...d, notices, care: { ...d.care, reminders: d.care.reminders.map(r => dueIds.has(r.id) ? { ...r, lastFired: today } : r), bookingAlerts: [...d.care.bookingAlerts, ...soonNow.map(b => b.id)].slice(-200) } };
+        for (const s of renewNow) notices = notifyAll({ ...d, notices }, senior.id, `Pack ending soon: ${s.title ?? 'Exercise pack'}`, `${s.remaining} session${s.remaining === 1 ? '' : 's'} left · ends ${new Date(s.ends).toLocaleDateString('en-IN')} · renew from the coach's profile (no automatic renewal)`);
+        return { ...d, notices, care: { ...d.care, reminders: d.care.reminders.map(r => dueIds.has(r.id) ? { ...r, lastFired: today } : r), bookingAlerts: [...d.care.bookingAlerts, ...soonNow.map(b => b.id), ...renewNow.map(s => `renew:${s.id}`)].slice(-200) } };
       });
       return titles;
     },
@@ -418,7 +427,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (b.type === "fitness" && db.bookings.some((existing) => existing.type === "fitness" && existing.partnerId === b.partnerId && existing.status !== "cancelled" && existing.when === b.when)) throw new Error("This slot has already been booked.");
       const sid = senior.id;
       const subscription = b.subscriptionId ? db.care.subscriptions.find(s => s.id === b.subscriptionId && s.seniorId === sid && hasActiveSubscription(s) && s.remaining > 0) : undefined;
-      if (b.subscriptionId && (!subscription || b.type !== 'fitness' || db.care.plans.find(p => p.id === subscription.planId)?.coachId !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
+      if (b.subscriptionId && (!subscription || b.type !== 'fitness' || subscriptionCoach(subscription, db.care.plans) !== b.partnerId || new Date(b.when) >= new Date(subscription.ends))) throw new Error('No valid subscription credit for this session.');
       // Stores and kitchens with their own verified riders: the server offers the order to their nearest free rider.
       const ownRiders = b.type !== "fitness" && db.delivery.some((d) => d.ownerPartnerId === b.partnerId && d.verified);
       const rider = b.type === "fitness" || ownRiders ? null : assignDelivery(db.delivery.filter((d) => !d.ownerPartnerId), db.bookings);
@@ -435,7 +444,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const b = d.bookings.find((x) => x.id === id);
       if (!b || !canAccessBooking(me, b) || !canTransition(b, s)) return d;
       const label = { confirmed: "Confirmed", in_progress: "Being prepared", out_for_delivery: "Out for delivery", completed: "Completed", cancelled: "Cancelled", pending_review: "Pharmacy reviewing" }[s];
-      return { ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(sub => s === 'cancelled' && b.subscriptionId === sub.id && hasActiveSubscription(sub) ? { ...sub, remaining: Math.min(EXERCISE_SUBSCRIPTION.sessions, sub.remaining + 1) } : sub) }, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, b.deliveryName && ["out_for_delivery", "completed"].includes(s) ? `${b.deliveryName} · delivering from ${b.partnerName}` : `Update from ${b.partnerName}`, b.deliveryId && b.deliveryName ? { kind: "delivery", id: b.deliveryId, name: b.deliveryName } : b.type === "fitness" ? { kind: "coach", id: b.partnerId, name: b.partnerName } : undefined) };
+      return { ...d, care: { ...d.care, subscriptions: d.care.subscriptions.map(sub => s === 'cancelled' && b.subscriptionId === sub.id && hasActiveSubscription(sub) ? { ...sub, remaining: Math.min(sub.sessions ?? EXERCISE_SUBSCRIPTION.sessions, sub.remaining + 1) } : sub) }, bookings: d.bookings.map((x) => (x.id === id ? { ...x, status: s } : x)), notices: notifyAll(d, b.seniorId, `${b.title}: ${label}`, b.deliveryName && ["out_for_delivery", "completed"].includes(s) ? `${b.deliveryName} · delivering from ${b.partnerName}` : `Update from ${b.partnerName}`, b.deliveryId && b.deliveryName ? { kind: "delivery", id: b.deliveryId, name: b.deliveryName } : b.type === "fitness" ? { kind: "coach", id: b.partnerId, name: b.partnerName } : undefined) };
     }),
     review: (id, r) => {
       const b = db.bookings.find((x) => x.id === id);
@@ -546,6 +555,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return null;
     },
     refresh: async () => { if (cloudUserId) await reload(); },
+    saveCoachPacks: async (packs) => {
+      if (myListing?.kind !== "coach" || !myListing.listing.verified) return "Only an approved fitness coach can sell packs.";
+      if (packs.length > MAX_PACKS) return `You can offer up to ${MAX_PACKS} packs.`;
+      for (const p of packs) { const e = packProblem(p); if (e) return e; }
+      if (cloudUserId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("coach_save_packs", { _packs: packs.map((p) => ({ ...p, title: p.title.trim() })) });
+        if (error) return cloudMessage(error);
+        await reload();
+        return null;
+      }
+      const id = myListing.listing.id;
+      const clean = packs.map((p) => ({ ...p, id: /^pk-[a-z0-9]{6,40}$/.test(p.id) ? p.id : `pk-${Math.random().toString(36).slice(2, 12)}`, title: p.title.trim() }));
+      update((d) => ({ ...d, coaches: d.coaches.map((c) => (c.id === id ? { ...c, packs: clean } : c)) }));
+      return null;
+    },
+    buyPack: async (coachId, packId, paymentRef, proof) => {
+      if (!senior || !canManageSenior(me, senior)) throw new Error("Link a senior before buying a pack.");
+      const coach = db.coaches.find((c) => c.id === coachId && c.verified);
+      const pack = coach?.packs?.find((p) => p.id === packId);
+      if (!coach || !pack) throw new Error("This pack is no longer available.");
+      if (cloudUserId) {
+        await purchasePack({ data: { coachId, packId, seniorId: senior.id, paymentId: paymentRef, ...(proof ?? {}) } });
+        await reload();
+        return;
+      }
+      const now = new Date();
+      const sub = { id: uid("sub"), seniorId: senior.id, planId: "", coachId, packId, title: pack.title, sessions: pack.sessions, remaining: pack.sessions, price: pack.price,
+        starts: now.toISOString(), ends: new Date(now.getTime() + pack.days * 86400000).toISOString(), cancelled: false, paymentRef, verified: false };
+      update((d) => ({ ...d, care: { ...d.care, subscriptions: [...d.care.subscriptions, sub] }, notices: notifyAll(d, senior.id, `Pack bought: ${pack.title}`, `${pack.sessions} sessions with ${coach.name} · valid until ${new Date(sub.ends).toLocaleDateString("en-IN")} · ₹${pack.price} paid · no automatic renewal`) }));
+    },
     saveCoachPlan: async (plan) => {
       if (myListing?.kind !== "coach" || !myListing.listing.verified) return "Only an approved fitness coach can publish plans.";
       const problem = planProblem(plan);

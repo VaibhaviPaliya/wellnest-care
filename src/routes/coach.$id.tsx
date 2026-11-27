@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { PacksForSale } from "@/components/Packs";
 import { useEffect, useState } from "react";
 import { Award, BadgeCheck, Home, Monitor, Star, EyeOff, Eye } from "lucide-react";
 import { toast } from "sonner";
@@ -59,6 +60,8 @@ function CoachProfile() {
           {(me?.role === "senior" || me?.role === "family") && <Link to="/fitness" className="btn btn-primary mt-2 inline-flex">Book a session</Link>}
         </div>
       </section>
+
+      <PacksForSale coach={coach} />
 
       {coach.certifications?.length ? (
         <section className="surface mt-6 p-5">

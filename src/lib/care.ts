@@ -18,7 +18,11 @@ export interface ExercisePlan {
   hidden?: boolean; hiddenReason?: "admin" | "reports";
   updatedAt?: string;
 }
-export interface Subscription { id: string; seniorId: string; planId: string; starts: string; ends: string; remaining: number; cancelled: boolean; }
+export interface Subscription {
+  id: string; seniorId: string; planId: string; starts: string; ends: string; remaining: number; cancelled: boolean;
+  /** Coach-priced packs (batch 3): which coach and pack, what was paid, and the Razorpay reference. */
+  coachId?: string; packId?: string; title?: string; sessions?: number; price?: number; paymentRef?: string; verified?: boolean;
+}
 export interface CareRequest { id: string; seniorId: string; kind: 'therapy' | 'meal'; detail: string; partnerId?: string; status: 'pending' | 'approved' | 'rejected'; professional?: string; decision?: string; }
 export type ReminderKind = 'medicine' | 'exercise' | 'meal' | 'water' | 'other';
 /** Repeating daily reminder. `days` uses JS weekday numbers (0 = Sunday). */
