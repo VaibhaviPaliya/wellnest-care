@@ -11,7 +11,7 @@ import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { DEMO_OTP, type HealthProfile, type Role } from "@/lib/seed";
 import { isPhoneEmail } from "@/lib/cloud";
-import { continueWithGoogle } from "@/lib/google";
+import { continueWithGoogle, googleReturnError } from "@/lib/google";
 import { GoogleButton } from "@/components/GoogleButton";
 import { HealthForm } from "@/components/HealthForm";
 import type { Address } from "@/lib/pincode";
@@ -53,6 +53,7 @@ function Login() {
   const [verifiedPhone, setVerifiedPhone] = useState(""); // email / Google sign-ups verify a mobile on the details step
   const resend = useCountdown();
 
+  useEffect(() => { const err = googleReturnError(); if (err) toast.error(err); }, []);
   useEffect(() => {
     if (me && pendingHealth) { completeOnboarding(pendingHealth.h, pendingHealth.addr); setPendingHealth(null); }
   }, [me, pendingHealth, completeOnboarding]);

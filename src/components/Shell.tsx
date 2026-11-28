@@ -8,7 +8,7 @@ import { useStore } from "@/lib/store";
 import { BrandMark } from "@/components/BrandMark";
 import { LangToggle, useT } from "@/lib/i18n";
 import type { Role } from "@/lib/seed";
-import { RAZORPAY_KEY_ID, RAZORPAY_TEST_MODE, loadRazorpay, toPaise } from "@/lib/payments";
+import { HIDDEN_METHODS, RAZORPAY_KEY_ID, RAZORPAY_TEST_MODE, loadRazorpay, toPaise } from "@/lib/payments";
 import { createPaymentOrder, verifyPayment } from "@/lib/payments.functions";
 
 export function Logo() {
@@ -144,6 +144,7 @@ export function UpiCheckout({ open, amount, title, onClose, onPaid, onDone }: { 
         prefill: { name: me?.name, contact: me?.phone ? `+91${me.phone}` : undefined },
         notes: { purpose: title },
         theme: { color: "#0F7C74" },
+        config: { display: { hide: HIDDEN_METHODS, preferences: { show_default_blocks: true } } },
         modal: { ondismiss: () => reset(), confirm_close: true },
         handler: async (r) => {
           setStage("saving");

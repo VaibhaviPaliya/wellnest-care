@@ -12,7 +12,7 @@ export function loadMap(): Promise<MapsApi> {
     window.wellnestMapReady = () => { if (window.google?.maps) resolve(window.google.maps); else reject(new Error('Map unavailable')); };
     const script = document.createElement('script');
     script.async = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env['VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY']}&loading=async&callback=wellnestMapReady&channel=${import.meta.env['VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID']}&language=en&region=IN`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env['VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY']}&loading=async&callback=wellnestMapReady&channel=${import.meta.env['VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID']}&language=${document.documentElement.lang === 'hi' ? 'hi' : 'en'}&region=IN`;
     script.onerror = () => { load = undefined; script.remove(); reject(new Error('Map unavailable')); };
     document.head.appendChild(script);
   });

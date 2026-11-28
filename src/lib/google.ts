@@ -21,3 +21,20 @@ export async function continueWithGoogle(): Promise<string | null> {
     return "Google sign-in is not available right now. Please use your mobile number or email.";
   }
 }
+
+/**
+ * After coming back from Google: a message if sign-in failed (Google or Lovable Cloud put the reason in
+ * the address), or null. The reason is removed from the address bar so a refresh doesn't show it again.
+ */
+export function googleReturnError(): string | null {
+  if (typeof window === "undefined") return null;
+  const q = new URLSearchParams(window.location.search);
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const code = q.get("error") ?? h.get("error");
+  if (!code) return null;
+  const detail = q.get("error_description") ?? h.get("error_description") ?? "";
+  window.history.replaceState(null, "", window.location.pathname);
+  if (/access_denied|cancel/i.test(code + detail)) return "Google sign-in was cancelled.";
+  if (/provider is not enabled|unsupported provider|not enabled/i.test(detail)) return "Google sign-in isn't switched on for WellNest yet. Please use your mobile number or email.";
+  return `Google sign-in didn't finish${detail ? `: ${detail.replace(/\+/g, " ")}` : ""}. Please try again or use your mobile number.`;
+}

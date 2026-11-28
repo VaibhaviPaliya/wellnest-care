@@ -16,7 +16,16 @@ export interface RazorpayOptions {
   theme?: { color: string };
   handler: (response: RazorpaySuccess) => void;
   modal?: { ondismiss?: () => void; confirm_close?: boolean };
+  /** Which payment methods the checkout shows (Razorpay "display configuration"). */
+  config?: { display: { hide?: { method: string }[]; preferences?: { show_default_blocks: boolean } } };
 }
+
+/**
+ * Methods hidden at checkout. Pay Later and cardless EMI need a credit check by SMS with the lender
+ * (no SMS is ever sent in test mode, and seniors rarely qualify), and card EMI is not offered for
+ * small amounts — so they only confuse people. UPI, cards, netbanking and wallets stay.
+ */
+export const HIDDEN_METHODS = [{ method: "paylater" }, { method: "cardless_emi" }, { method: "emi" }];
 interface RazorpayInstance { open: () => void; on: (event: "payment.failed", cb: (r: RazorpayFailure) => void) => void; }
 declare global { interface Window { Razorpay?: new (options: RazorpayOptions) => RazorpayInstance } }
 

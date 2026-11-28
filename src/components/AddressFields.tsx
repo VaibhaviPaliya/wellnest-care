@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Crosshair, Loader2 } from "lucide-react";
+import { Crosshair, ExternalLink, Loader2 } from "lucide-react";
+import { loadMap } from "./TrackingMap";
 import { currentPosition } from "@/lib/riders";
 import { INDIAN_STATES, isPincode, normalizeState, stateFromPincode, type Address } from "@/lib/pincode";
 import { lookupPincode } from "@/lib/pincode.functions";
@@ -90,6 +91,11 @@ export function AddressFields({ value, onChange, idPrefix = "addr", lineLabel = 
           <span className="text-xs text-muted-foreground" aria-live="polite">{pinNote || (value.lat != null ? "Home pinned — riders and coaches navigate straight to it." : "Helps riders and coaches find the door and gives better arrival times.")}</span>
         </div>
       )}
+      {allowPin && value.lat != null && value.lng != null && (
+        <div className="sm:col-span-2">
+          <PinMap lat={value.lat} lng={value.lng} onMove={(p) => { onChange({ ...latest.current, lat: p.lat, lng: p.lng }); setPinNote("Pin moved. Save to keep it."); }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -122,6 +128,55 @@ export function PincodeChips({ value, onChange, id = "service-pins" }: { value: 
         ))}
         {!value.length && <span className="text-sm text-muted-foreground">Customers only see you in the pincodes listed here.</span>}
       </div>
+    </div>
+  );
+}
+
+// Google Maps types are not installed; only the calls used here are typed.
+type PinMapApi = { Map: new (el: HTMLElement, o: object) => { panTo: (p: object) => void; addListener: (e: string, f: (ev: { latLng: { lat: () => number; lng: () => number } }) => void) => void }; Marker: new (o: object) => { setPosition: (p: object) => void; addListener: (e: string, f: () => void) => void; getPosition: () => { lat: () => number; lng: () => number } } };
+
+/** Map of the pinned home. Drag the pin (or tap the map) to put it exactly on the house. */
+function PinMap({ lat, lng, onMove }: { lat: number; lng: number; onMove: (p: { lat: number; lng: number }) => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  const map = useRef<InstanceType<PinMapApi["Map"]> | null>(null);
+  const marker = useRef<InstanceType<PinMapApi["Marker"]> | null>(null);
+  const move = useRef(onMove);
+  move.current = onMove;
+  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  useEffect(() => {
+    let cancelled = false;
+    void loadMap().then((api) => {
+      if (cancelled || !el.current) return;
+      const g = api as unknown as PinMapApi;
+      map.current = new g.Map(el.current, { center: { lat, lng }, zoom: 18, clickableIcons: false, streetViewControl: false, mapTypeControl: true, gestureHandling: "cooperative" });
+      marker.current = new g.Marker({ position: { lat, lng }, map: map.current, draggable: true, title: "Your home" });
+      marker.current.addListener("dragend", () => { const p = marker.current!.getPosition(); move.current({ lat: p.lat(), lng: p.lng() }); });
+      map.current.addListener("click", (e) => { const p = { lat: e.latLng.lat(), lng: e.latLng.lng() }; marker.current?.setPosition(p); move.current(p); });
+      setState("ready");
+    }).catch(() => { if (!cancelled) setState("failed"); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (state !== "ready") return;
+    marker.current?.setPosition({ lat, lng });
+    map.current?.panTo({ lat, lng });
+  }, [lat, lng, state]);
+  const link = `https://www.google.com/maps/search/?api=1&query=${lat.toFixed(6)},${lng.toFixed(6)}`;
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <div ref={el} className="h-64 w-full rounded-xl border" role="img" aria-label="Map of your pinned home" />
+        {state !== "ready" && (
+          <p className="absolute inset-0 flex items-center justify-center rounded-xl bg-muted p-4 text-center text-sm">
+            {state === "failed" ? "Map unavailable right now. Use the link below to check the pin." : "Loading map…"}
+          </p>
+        )}
+      </div>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>Not exactly on your house? Drag the pin or tap the right spot, then save.</span>
+        <a className="inline-flex items-center gap-1 font-semibold text-primary underline" href={link} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" />Open in Google Maps</a>
+      </p>
     </div>
   );
 }

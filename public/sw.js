@@ -4,9 +4,10 @@
  *  - Pages (HTML) always come from the network; if the phone is offline, /offline.html is shown instead.
  *  - Only fingerprinted build files (/assets/*), icons and fonts are cached.
  *  - Anything else — Lovable Cloud, sign-in, payments, maps, server functions, POSTs — is never touched.
+ *  - Google sign-in (/~oauth/…) and its return trip are left entirely to the browser.
  * Bump VERSION to force every installed copy to refresh its cache.
  */
-const VERSION = "wellnest-v1";
+const VERSION = "wellnest-v2";
 const STATIC_CACHE = `${VERSION}-static`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/favicon.svg", "/manifest.json"];
@@ -32,6 +33,7 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.pathname.startsWith("/~") || url.hash.includes("access_token") || url.searchParams.has("code") || url.searchParams.has("error")) return;
 
   // Pages: always fresh from the network; offline page when there is no connection.
   if (req.mode === "navigate") {

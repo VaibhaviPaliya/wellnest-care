@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { HI_EXTRA } from "./i18n-hi";
+import { createTranslator } from "./domTranslate";
 
 export type Lang = "en" | "hi";
 const KEY = "wellnest-lang";
@@ -172,8 +174,12 @@ interface LangCtx {
 }
 const L = createContext<LangCtx | null>(null);
 
+/** Every known translation: the hand-written list above wins over the generated one. */
+const ALL_HI: Record<string, string> = { ...HI_EXTRA, ...HI };
+let pageTranslator: ReturnType<typeof createTranslator> | null = null;
+
 export function translate(lang: Lang, en: string, vars?: Record<string, string | number>): string {
-  const base = lang === "hi" ? (HI[en] ?? en) : en;
+  const base = lang === "hi" ? (ALL_HI[en] ?? en) : en;
   return vars ? base.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : base;
 }
 
@@ -188,6 +194,11 @@ export function LangProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     document.documentElement.lang = lang;
+    // Hindi: translate everything on the page, including text that doesn't go through t().
+    pageTranslator ??= createTranslator(ALL_HI);
+    if (lang === "hi") pageTranslator.start();
+    else pageTranslator.stop();
+    return () => pageTranslator?.stop();
   }, [lang]);
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
